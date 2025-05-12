@@ -65,7 +65,7 @@ import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
 import java.io.File
 
-class MainActivity : ComponentActivity() {
+class ark5 : ComponentActivity() {
     private lateinit var mapView: MapView
     private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
     private lateinit var navigationCamera: NavigationCamera
@@ -306,11 +306,6 @@ class MainActivity : ComponentActivity() {
         if (currentOrigin != null && currentDestination != null) {
             isNavigating = true
 
-            // 운전 시점으로 카메라 줌/피치 오버라이드
-            viewportDataSource.followingZoomPropertyOverride(17.0) // 운전 시 가까운 줌
-            viewportDataSource.followingPitchPropertyOverride(45.0) // 3D 시점
-            viewportDataSource.evaluate()
-
             // Update UI
             startNavigationButton.visibility = View.GONE
             cancelButton.visibility = View.VISIBLE
@@ -323,11 +318,6 @@ class MainActivity : ComponentActivity() {
     // Cancel navigation mode
     private fun cancelNavigation() {
         isNavigating = false
-
-        // 카메라 오버라이드 해제
-        viewportDataSource.followingZoomPropertyOverride(null)
-        viewportDataSource.followingPitchPropertyOverride(null)
-        viewportDataSource.evaluate()
 
         // Update UI
         cancelButton.visibility = View.GONE
@@ -556,7 +546,7 @@ class MainActivity : ComponentActivity() {
                     Log.e("Navigation", "Route request failed: ${reasons.firstOrNull()?.message}")
                     runOnUiThread {
                         Toast.makeText(
-                            this@MainActivity,
+                            this@ark5, //여기
                             "경로를 찾을 수 없습니다: ${reasons.firstOrNull()?.message}",
                             Toast.LENGTH_SHORT
                         ).show()

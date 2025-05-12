@@ -65,7 +65,7 @@ import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
 import java.io.File
 
-class MainActivity : ComponentActivity() {
+class ark4 : ComponentActivity() {
     private lateinit var mapView: MapView
     private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
     private lateinit var navigationCamera: NavigationCamera
@@ -79,12 +79,12 @@ class MainActivity : ComponentActivity() {
     private var currentOrigin: Point? = null
     private var currentDestination: Point? = null
 
+    // 디버깅용 기본 위치 (서울 시청 근처)
+    private val DEFAULT_LOCATION = Point.fromLngLat(126.977969, 37.566535)
+
     // 경로 요청 디바운싱을 위한 변수
     private var lastRouteRequestTime = 0L
     private val ROUTE_REQUEST_DEBOUNCE_TIME = 3000 // 3초
-
-    // Flag to track if we've already centered the camera on user's location
-    private var hasInitializedCamera = false
 
     // UI components
     private lateinit var startNavigationButton: Button
@@ -228,7 +228,16 @@ class MainActivity : ComponentActivity() {
     private fun initializeMapComponents() {
         MapboxMapsOptions.tileStore = tileStore
 
-        // Set up map style without setting camera position
+        // The MapView is already created in onCreate
+        // Just set the camera position to Seoul area
+        mapView.mapboxMap.setCamera(
+            CameraOptions.Builder()
+                .center(Point.fromLngLat(126.977969, 37.566535)) // 서울 시청 근처
+                .zoom(14.0)
+                .build()
+        )
+
+        // Set up map style
         mapView.mapboxMap.loadStyleUri(Style.MAPBOX_STREETS)
 
         // Initialize location puck
@@ -259,6 +268,16 @@ class MainActivity : ComponentActivity() {
 
         // Initialize annotation manager for destination marker
         pointAnnotationManager = mapView.annotations.createPointAnnotationManager()
+
+        // 디버깅을 위해 기본 위치 설정 (실제 GPS가 작동하지 않는 환경에서 테스트할 때 유용)
+        currentOrigin = DEFAULT_LOCATION
+        // 테스트용 위치 업데이트
+        navigationLocationProvider.changePosition(
+            location = Location.Builder()
+                .longitude(DEFAULT_LOCATION.longitude())
+                .latitude(DEFAULT_LOCATION.latitude())
+                .build()
+        )
 
         // Set up map click listener to set destination
         mapView.mapboxMap.addOnMapClickListener { point ->
@@ -306,11 +325,6 @@ class MainActivity : ComponentActivity() {
         if (currentOrigin != null && currentDestination != null) {
             isNavigating = true
 
-            // 운전 시점으로 카메라 줌/피치 오버라이드
-            viewportDataSource.followingZoomPropertyOverride(17.0) // 운전 시 가까운 줌
-            viewportDataSource.followingPitchPropertyOverride(45.0) // 3D 시점
-            viewportDataSource.evaluate()
-
             // Update UI
             startNavigationButton.visibility = View.GONE
             cancelButton.visibility = View.VISIBLE
@@ -323,11 +337,6 @@ class MainActivity : ComponentActivity() {
     // Cancel navigation mode
     private fun cancelNavigation() {
         isNavigating = false
-
-        // 카메라 오버라이드 해제
-        viewportDataSource.followingZoomPropertyOverride(null)
-        viewportDataSource.followingPitchPropertyOverride(null)
-        viewportDataSource.evaluate()
 
         // Update UI
         cancelButton.visibility = View.GONE
@@ -381,22 +390,7 @@ class MainActivity : ComponentActivity() {
                 keyPoints = locationMatcherResult.keyPoints,
             )
 
-            // Only move the camera to the user's location the first time we get a location
-            if (!hasInitializedCamera) {
-                mapView.mapboxMap.setCamera(
-                    CameraOptions.Builder()
-                        .center(Point.fromLngLat(enhancedLocation.longitude, enhancedLocation.latitude))
-                        .zoom(15.0)
-                        .build()
-                )
-
-                // Mark camera as initialized
-                hasInitializedCamera = true
-
-                Log.d("Navigation", "Camera initialized to user location: ${enhancedLocation.longitude}, ${enhancedLocation.latitude}")
-            }
-
-            // Update viewportDataSource to trigger camera to follow the location during navigation
+            // Update viewportDataSource to trigger camera to follow the location
             viewportDataSource.onLocationChanged(enhancedLocation)
             viewportDataSource.evaluate()
 
@@ -556,7 +550,7 @@ class MainActivity : ComponentActivity() {
                     Log.e("Navigation", "Route request failed: ${reasons.firstOrNull()?.message}")
                     runOnUiThread {
                         Toast.makeText(
-                            this@MainActivity,
+                            this@ark4, // 여기
                             "경로를 찾을 수 없습니다: ${reasons.firstOrNull()?.message}",
                             Toast.LENGTH_SHORT
                         ).show()

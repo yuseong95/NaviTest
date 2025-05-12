@@ -10,8 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "com.capstone.navitest"
-        minSdk = 35
-        targetSdk = 35
+        minSdk = 33
+        targetSdk = 33
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
