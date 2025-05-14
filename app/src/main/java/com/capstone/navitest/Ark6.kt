@@ -2,8 +2,6 @@ package com.capstone.navitest
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -13,14 +11,11 @@ import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.common.MapboxOptions
 import com.mapbox.common.TileRegionLoadOptions
@@ -37,7 +32,6 @@ import com.mapbox.maps.MapboxMapsOptions
 import com.mapbox.maps.OfflineManager
 import com.mapbox.maps.Style
 import com.mapbox.maps.TilesetDescriptorOptions
-import com.mapbox.maps.extension.style.layers.getLayerAs
 import com.mapbox.maps.extension.style.layers.properties.generated.IconAnchor
 import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.animation.camera
@@ -64,17 +58,14 @@ import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
-import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
-import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
-import kotlinx.coroutines.launch
 import java.io.File
 
-class MainActivity : ComponentActivity() {
+class Ark6 : ComponentActivity() {
     private lateinit var mapView: MapView
     private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
     private lateinit var navigationCamera: NavigationCamera
@@ -83,19 +74,6 @@ class MainActivity : ComponentActivity() {
     private val navigationLocationProvider = NavigationLocationProvider()
     private lateinit var tileStore: TileStore
     private lateinit var pointAnnotationManager: PointAnnotationManager
-    private lateinit var prefs: SharedPreferences
-    private lateinit var recenterButton: Button
-
-    // 언어 설정을 위한 상수
-    companion object {
-        const val PREFS_NAME = "NaviSettings"
-        const val PREF_LANG_KEY = "language"
-        const val LANG_KOREAN = "ko"
-        const val LANG_ENGLISH = "en"
-    }
-
-    // 현재 선택된 언어
-    private var selectedLanguage = LANG_KOREAN // 디폴트 한국어
 
     // Variables to store the origin and destination points
     private var currentOrigin: Point? = null
@@ -112,7 +90,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var startNavigationButton: Button
     private lateinit var cancelButton: Button
     private lateinit var buttonLayout: LinearLayout
-    private lateinit var languageRadioGroup: RadioGroup
 
     // Track if navigation is active
     private var isNavigating = false
@@ -128,24 +105,17 @@ class MainActivity : ComponentActivity() {
                     initializeMapComponents()
                 }
                 else -> {
-                    val message = if (selectedLanguage == LANG_KOREAN) {
-                        "위치 권한이 거부되었습니다. 설정에서 권한을 활성화해주세요."
-                    } else {
-                        "Location permissions denied. Please enable permissions in settings."
-                    }
-                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this,
+                        "Location permissions denied. Please enable permissions in settings.",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Initialize shared preferences
-        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-        // Load saved language preference or use Korean as default
-        selectedLanguage = prefs.getString(PREF_LANG_KEY, LANG_KOREAN) ?: LANG_KOREAN
 
         // Create a root view
         val rootLayout = FrameLayout(this)
@@ -210,7 +180,7 @@ class MainActivity : ComponentActivity() {
 
         // Create start navigation button
         startNavigationButton = Button(this).apply {
-            text = if (selectedLanguage == LANG_KOREAN) "내비게이션 시작" else "Start Navigation"
+            text = "Start Navigation"
             isEnabled = false // Initially disabled until destination is selected
             setOnClickListener {
                 startNavigation()
@@ -219,109 +189,20 @@ class MainActivity : ComponentActivity() {
 
         // Create cancel button
         cancelButton = Button(this).apply {
-            text = if (selectedLanguage == LANG_KOREAN) "내비게이션 취소" else "Cancel Navigation"
+            text = "Cancel Navigation"
             visibility = View.GONE
             setOnClickListener {
                 cancelNavigation()
             }
         }
 
-        // Create recenter button
-        recenterButton = Button(this).apply {
-            text = if (selectedLanguage == LANG_KOREAN) "위치로 돌아가기" else "Return to Route"
-            visibility = View.GONE // 처음에는 숨김
-            setOnClickListener {
-                navigationCamera.requestNavigationCameraToFollowing()
-            }
-        }
-
-        // 버튼 레이아웃에 추가
-        buttonLayout.addView(recenterButton)
-
-        // 언어 선택을 위한 RadioGroup 생성
-        languageRadioGroup = RadioGroup(this).apply {
-            orientation = RadioGroup.HORIZONTAL
-            val radioButtonKo = RadioButton(context).apply {
-                id = View.generateViewId()
-                text = "한국어"
-                isChecked = selectedLanguage == LANG_KOREAN
-            }
-            val radioButtonEn = RadioButton(context).apply {
-                id = View.generateViewId()
-                text = "English"
-                isChecked = selectedLanguage == LANG_ENGLISH
-            }
-
-            addView(radioButtonKo)
-            addView(radioButtonEn)
-
-            setOnCheckedChangeListener { _, checkedId ->
-                val newLanguage = if (checkedId == radioButtonKo.id) LANG_KOREAN else LANG_ENGLISH
-                changeLanguage(newLanguage)
-            }
-        }
-
-        // Add UI components to layout
-        buttonLayout.addView(languageRadioGroup)
+        // Add buttons to layout
         buttonLayout.addView(startNavigationButton)
         buttonLayout.addView(cancelButton)
 
         // Add button layout to root
         rootLayout.addView(buttonLayout)
     }
-
-    // 언어 변경 메서드
-    private fun changeLanguage(newLanguage: String) {
-        if (selectedLanguage == newLanguage) return
-
-        selectedLanguage = newLanguage
-
-        // 언어 설정 저장
-        prefs.edit().putString(PREF_LANG_KEY, selectedLanguage).apply()
-
-        // UI 텍스트 업데이트
-        startNavigationButton.text = if (selectedLanguage == LANG_KOREAN) "내비게이션 시작" else "Start Navigation"
-        cancelButton.text = if (selectedLanguage == LANG_KOREAN) "내비게이션 취소" else "Cancel Navigation"
-
-        // 지도 스타일 다시 로드 (한국어/영어 라벨 적용)
-        applyMapStyle()
-
-        // 만약 경로가 있다면 경로 다시 요청 (새 언어로 안내 생성)
-        if (currentOrigin != null && currentDestination != null) {
-            requestRoute()
-        }
-
-        // 언어 변경 알림
-        val message = if (selectedLanguage == LANG_KOREAN) "언어가 한국어로 변경되었습니다." else "Language changed to English."
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun applyMapStyle() {
-        mapView.mapboxMap.loadStyleUri(Style.MAPBOX_STREETS) { style ->
-            // 한국어 라벨 우선 적용 (글로벌 설정)
-            if (selectedLanguage == LANG_KOREAN) {
-                // 주요 라벨 레이어의 이름과 필드를 한국어로 설정
-                val labelLayers = listOf(
-                    "country-label",
-                    "road-label",
-                    "settlement-label",
-                    "poi-label",
-                    "water-point-label",
-                    "water-line-label"
-                )
-
-                // 각 레이어의 text-field 속성을 한국어 필드로 변경
-                labelLayers.forEach { layerId ->
-                    // Use getLayerAs to get the layer as a SymbolLayer and then set properties
-                    style.getLayerAs<com.mapbox.maps.extension.style.layers.generated.SymbolLayer>(layerId)?.let { layer ->
-                        // Set text field to Korean field
-                        layer.textField("{name_ko}")
-                    }
-                }
-            }
-        }
-    }
-
 
     private fun checkTileRegionExists() {
         val regionName = "seoul-incheon-gyeonggi"
@@ -347,8 +228,8 @@ class MainActivity : ComponentActivity() {
     private fun initializeMapComponents() {
         MapboxMapsOptions.tileStore = tileStore
 
-        // 지도 스타일 적용 (한국어/영어 라벨)
-        applyMapStyle()
+        // Set up map style without setting camera position
+        mapView.mapboxMap.loadStyleUri(Style.MAPBOX_STREETS)
 
         // Initialize location puck
         mapView.location.apply {
@@ -372,10 +253,6 @@ class MainActivity : ComponentActivity() {
         // Initialize a NavigationCamera
         navigationCamera = NavigationCamera(mapView.mapboxMap, mapView.camera, viewportDataSource)
 
-        mapView.camera.addCameraAnimationsLifecycleListener(
-            NavigationBasicGesturesHandler(navigationCamera)
-        )
-
         // Initialize route line API and view for drawing the route on the map
         routeLineApi = MapboxRouteLineApi(MapboxRouteLineApiOptions.Builder().build())
         routeLineView = MapboxRouteLineView(MapboxRouteLineViewOptions.Builder(this).build())
@@ -390,17 +267,6 @@ class MainActivity : ComponentActivity() {
                 setDestination(point)
             }
             true
-        }
-
-        // 카메라 상태 관찰 로직 추가
-        navigationCamera.registerNavigationCameraStateChangeObserver { navigationCameraState ->
-            when (navigationCameraState) {
-                NavigationCameraState.TRANSITION_TO_FOLLOWING,
-                NavigationCameraState.FOLLOWING -> recenterButton.visibility = View.GONE
-                NavigationCameraState.TRANSITION_TO_OVERVIEW,
-                NavigationCameraState.OVERVIEW,
-                NavigationCameraState.IDLE -> recenterButton.visibility = View.VISIBLE
-            }
         }
     }
 
@@ -432,8 +298,7 @@ class MainActivity : ComponentActivity() {
             requestRoute()
         }
 
-        val message = if (selectedLanguage == LANG_KOREAN) "목적지 설정됨" else "Destination set"
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Destination set", Toast.LENGTH_SHORT).show()
     }
 
     // Start navigation mode
@@ -442,8 +307,8 @@ class MainActivity : ComponentActivity() {
             isNavigating = true
 
             // 운전 시점으로 카메라 줌/피치 오버라이드
-            viewportDataSource.followingZoomPropertyOverride(20.0) // 운전 시 가까운 줌
-            viewportDataSource.followingPitchPropertyOverride(45.0) // 3D 시점
+            viewportDataSource.followingZoomPropertyOverride(30.0) // 운전 시 가까운 줌
+            viewportDataSource.followingPitchPropertyOverride(70.0) // 3D 시점
             viewportDataSource.evaluate()
 
             // Update UI
@@ -467,19 +332,9 @@ class MainActivity : ComponentActivity() {
         // Update UI
         cancelButton.visibility = View.GONE
         startNavigationButton.visibility = View.VISIBLE
-        recenterButton.visibility = View.GONE // 네비게이션 취소 시 숨김
 
         // Clear routes
         mapboxNavigation.setNavigationRoutes(emptyList())
-
-        // 경로 라인 명시적으로 지우기
-        lifecycleScope.launch {
-            routeLineApi.clearRouteLine { value ->
-                mapView.mapboxMap.getStyle()?.let { style ->
-                    routeLineView.renderClearRouteLineValue(style, value)
-                }
-            }
-        }
 
         // Clear the destination marker
         pointAnnotationManager.deleteAll()
@@ -609,7 +464,7 @@ class MainActivity : ComponentActivity() {
                 .build()
         )
 
-        // 내비게이션을 위한 추가 타일셋
+        // 내비게이션을 위한 추가 타일셋 - 이것이 중요합니다
         val navigationTilesetDescriptor = offlineManager.createTilesetDescriptor(
             TilesetDescriptorOptions.Builder()
                 .styleURI("mapbox://styles/mapbox/navigation-day-v1")
@@ -653,12 +508,11 @@ class MainActivity : ComponentActivity() {
 
                 // 성공 메시지 표시
                 runOnUiThread {
-                    val message = if (selectedLanguage == LANG_KOREAN)
-                        "오프라인 지도 다운로드 완료"
-                    else
-                        "Offline map download completed"
-
-                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this,
+                        "오프라인 지도 다운로드 완료",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             } else {
                 // 다운로드 실패
@@ -666,12 +520,11 @@ class MainActivity : ComponentActivity() {
                 Log.e("OfflineTiles", "Download failed: ${error.message}")
 
                 runOnUiThread {
-                    val message = if (selectedLanguage == LANG_KOREAN)
-                        "오프라인 지도 다운로드 실패: ${error.message}"
-                    else
-                        "Offline map download failed: ${error.message}"
-
-                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this,
+                        "오프라인 지도 다운로드 실패: ${error.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
@@ -688,17 +541,12 @@ class MainActivity : ComponentActivity() {
         // 이 시점에서 lastRouteRequestTime 업데이트
         lastRouteRequestTime = System.currentTimeMillis()
 
-        // 경로 요청 옵션 빌드
-        val routeOptions = RouteOptions.builder()
-            .applyDefaultNavigationOptions()
-            .coordinatesList(listOf(origin, destination))
-            .layersList(listOf(mapboxNavigation.getZLevel(), null))
-            .language(selectedLanguage) // 선택된 언어로 경로 안내 설정
-            .steps(true) // 턴 바이 턴 안내를 위해 필요
-            .build()
-
         mapboxNavigation.requestRoutes(
-            routeOptions,
+            RouteOptions.builder()
+                .applyDefaultNavigationOptions()
+                .coordinatesList(listOf(origin, destination))
+                .layersList(listOf(mapboxNavigation.getZLevel(), null))
+                .build(),
             object : NavigationRouterCallback {
                 override fun onCanceled(routeOptions: RouteOptions, routerOrigin: String) {
                     Log.d("Navigation", "Route request canceled")
@@ -707,12 +555,11 @@ class MainActivity : ComponentActivity() {
                 override fun onFailure(reasons: List<RouterFailure>, routeOptions: RouteOptions) {
                     Log.e("Navigation", "Route request failed: ${reasons.firstOrNull()?.message}")
                     runOnUiThread {
-                        val message = if (selectedLanguage == LANG_KOREAN)
-                            "경로를 찾을 수 없습니다: ${reasons.firstOrNull()?.message}"
-                        else
-                            "Could not find route: ${reasons.firstOrNull()?.message}"
-
-                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@Ark6,
+                            "경로를 찾을 수 없습니다: ${reasons.firstOrNull()?.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
 
