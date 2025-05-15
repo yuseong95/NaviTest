@@ -47,6 +47,7 @@ dependencies {
     implementation("com.mapbox.navigationcore:tripdata:3.9.0-rc.1")
     implementation("com.mapbox.navigationcore:android:3.9.0-rc.1")
     implementation("com.mapbox.navigationcore:ui-components:3.9.0-rc.1")
+    implementation ("androidx.constraintlayout:constraintlayout:2.2.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

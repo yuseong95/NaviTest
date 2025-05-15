@@ -1,6 +1,7 @@
 package com.capstone.navitest
 
 import android.Manifest
+import android.R.attr.visibility
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
@@ -50,6 +51,7 @@ import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
+import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.options.RoutingTilesOptions
 import com.mapbox.navigation.base.route.NavigationRoute
@@ -57,11 +59,19 @@ import com.mapbox.navigation.base.route.NavigationRouterCallback
 import com.mapbox.navigation.base.route.RouterFailure
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesObserver
+import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
+import com.mapbox.navigation.core.trip.session.RouteProgressObserver
+import com.mapbox.navigation.tripdata.maneuver.api.MapboxManeuverApi
+import com.mapbox.navigation.tripdata.progress.api.MapboxTripProgressApi
+import com.mapbox.navigation.tripdata.progress.model.PercentDistanceTraveledFormatter
+import com.mapbox.navigation.tripdata.progress.model.TripProgressUpdateFormatter
+import com.mapbox.navigation.ui.components.maneuver.view.MapboxManeuverView
+import com.mapbox.navigation.ui.components.tripprogress.view.MapboxTripProgressView
 import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
@@ -71,6 +81,9 @@ import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
+import com.mapbox.navigation.tripdata.progress.model.DistanceRemainingFormatter
+import com.mapbox.navigation.tripdata.progress.model.TimeRemainingFormatter
+import com.mapbox.navigation.tripdata.progress.model.EstimatedTimeOfArrivalFormatter
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -85,6 +98,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var pointAnnotationManager: PointAnnotationManager
     private lateinit var prefs: SharedPreferences
     private lateinit var recenterButton: Button
+
+    // 턴 바이 턴 안내를 위한 변수들
+    private lateinit var maneuverApi: MapboxManeuverApi
+    private lateinit var tripProgressApi: MapboxTripProgressApi
+    private lateinit var maneuverView: MapboxManeuverView
+    private lateinit var tripProgressView: MapboxTripProgressView
 
     // 언어 설정을 위한 상수
     companion object {
@@ -147,9 +166,8 @@ class MainActivity : ComponentActivity() {
         // Load saved language preference or use Korean as default
         selectedLanguage = prefs.getString(PREF_LANG_KEY, LANG_KOREAN) ?: LANG_KOREAN
 
-        // Create a root view
-        val rootLayout = FrameLayout(this)
-        setContentView(rootLayout)
+        // XML 레이아웃 설정 (rootLayout 대신 바로 사용)
+        setContentView(R.layout.activity_main)
 
         MapboxOptions.accessToken = getString(R.string.mapbox_access_token)
 
@@ -160,15 +178,11 @@ class MainActivity : ComponentActivity() {
         // Check if tile regions already exist before downloading
         checkTileRegionExists()
 
-        // Create the MapView first
-        val mapInitOptions = MapInitOptions(context = this)
-        mapView = MapView(this, mapInitOptions)
+        // 이제 MapView를 따로 생성하지 않고 XML에서 참조
+        mapView = findViewById(R.id.mapView)
 
-        // Add mapView to root layout
-        rootLayout.addView(mapView)
-
-        // Initialize and set up UI components
-        setupUIComponents(rootLayout)
+        // UI 컴포넌트 초기화 및 설정
+        setupUIComponents()
 
         // 권한 확인 후 맵 초기화가 진행되도록 수정
         checkLocationPermissions()
@@ -193,81 +207,49 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun setupUIComponents(rootLayout: FrameLayout) {
-        // Create button layout
-        buttonLayout = LinearLayout(this).apply {
-            id = View.generateViewId()
-            orientation = LinearLayout.VERTICAL
-            val params = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.gravity = Gravity.BOTTOM or Gravity.END
-            params.bottomMargin = (16 * resources.displayMetrics.density).toInt()
-            params.rightMargin = (16 * resources.displayMetrics.density).toInt()
-            layoutParams = params
+    private fun setupUIComponents() {
+        // XML에서 UI 컴포넌트 참조
+        buttonLayout = findViewById(R.id.buttonLayout)
+        startNavigationButton = findViewById(R.id.startNavigationButton)
+        cancelButton = findViewById(R.id.cancelButton)
+        recenterButton = findViewById(R.id.recenterButton)
+        languageRadioGroup = findViewById(R.id.languageRadioGroup)
+        maneuverView = findViewById(R.id.maneuverView)
+        tripProgressView = findViewById(R.id.tripProgressView)
+
+        // Radio 버튼 참조
+        val radioButtonKo = findViewById<RadioButton>(R.id.radioButtonKo)
+        val radioButtonEn = findViewById<RadioButton>(R.id.radioButtonEn)
+
+        // 초기 언어 설정에 따라 라디오 버튼 상태 설정
+        radioButtonKo.isChecked = selectedLanguage == LANG_KOREAN
+        radioButtonEn.isChecked = selectedLanguage == LANG_ENGLISH
+
+        // 버튼 클릭 리스너 설정
+        startNavigationButton.setOnClickListener {
+            startNavigation()
         }
 
-        // Create start navigation button
-        startNavigationButton = Button(this).apply {
-            text = if (selectedLanguage == LANG_KOREAN) "내비게이션 시작" else "Start Navigation"
-            isEnabled = false // Initially disabled until destination is selected
-            setOnClickListener {
-                startNavigation()
-            }
+        cancelButton.setOnClickListener {
+            cancelNavigation()
         }
 
-        // Create cancel button
-        cancelButton = Button(this).apply {
-            text = if (selectedLanguage == LANG_KOREAN) "내비게이션 취소" else "Cancel Navigation"
-            visibility = View.GONE
-            setOnClickListener {
-                cancelNavigation()
-            }
+        recenterButton.setOnClickListener {
+            navigationCamera.requestNavigationCameraToFollowing()
         }
 
-        // Create recenter button
-        recenterButton = Button(this).apply {
-            text = if (selectedLanguage == LANG_KOREAN) "위치로 돌아가기" else "Return to Route"
-            visibility = View.GONE // 처음에는 숨김
-            setOnClickListener {
-                navigationCamera.requestNavigationCameraToFollowing()
-            }
+        // 언어 변경 리스너 설정
+        languageRadioGroup.setOnCheckedChangeListener { _, checkedId ->
+            val newLanguage = if (checkedId == R.id.radioButtonKo) LANG_KOREAN else LANG_ENGLISH
+            changeLanguage(newLanguage)
         }
 
-        // 버튼 레이아웃에 추가
-        buttonLayout.addView(recenterButton)
-
-        // 언어 선택을 위한 RadioGroup 생성
-        languageRadioGroup = RadioGroup(this).apply {
-            orientation = RadioGroup.HORIZONTAL
-            val radioButtonKo = RadioButton(context).apply {
-                id = View.generateViewId()
-                text = "한국어"
-                isChecked = selectedLanguage == LANG_KOREAN
-            }
-            val radioButtonEn = RadioButton(context).apply {
-                id = View.generateViewId()
-                text = "English"
-                isChecked = selectedLanguage == LANG_ENGLISH
-            }
-
-            addView(radioButtonKo)
-            addView(radioButtonEn)
-
-            setOnCheckedChangeListener { _, checkedId ->
-                val newLanguage = if (checkedId == radioButtonKo.id) LANG_KOREAN else LANG_ENGLISH
-                changeLanguage(newLanguage)
-            }
-        }
-
-        // Add UI components to layout
-        buttonLayout.addView(languageRadioGroup)
-        buttonLayout.addView(startNavigationButton)
-        buttonLayout.addView(cancelButton)
-
-        // Add button layout to root
-        rootLayout.addView(buttonLayout)
+        // 초기 UI 상태 설정
+        startNavigationButton.isEnabled = false
+        cancelButton.visibility = View.GONE
+        recenterButton.visibility = View.GONE
+        maneuverView.visibility = View.GONE
+        tripProgressView.visibility = View.GONE
     }
 
     // 언어 변경 메서드
@@ -282,6 +264,7 @@ class MainActivity : ComponentActivity() {
         // UI 텍스트 업데이트
         startNavigationButton.text = if (selectedLanguage == LANG_KOREAN) "내비게이션 시작" else "Start Navigation"
         cancelButton.text = if (selectedLanguage == LANG_KOREAN) "내비게이션 취소" else "Cancel Navigation"
+        recenterButton.text = if (selectedLanguage == LANG_KOREAN) "위치로 돌아가기" else "Return to Route"
 
         // 지도 스타일 다시 로드 (한국어/영어 라벨 적용)
         applyMapStyle()
@@ -402,6 +385,22 @@ class MainActivity : ComponentActivity() {
                 NavigationCameraState.IDLE -> recenterButton.visibility = View.VISIBLE
             }
         }
+
+        // 턴 바이 턴 안내를 위한 API 초기화
+        maneuverApi = MapboxManeuverApi(
+            MapboxDistanceFormatter(DistanceFormatterOptions.Builder(this).build())
+        )
+
+        tripProgressApi = MapboxTripProgressApi(
+            TripProgressUpdateFormatter.Builder(this)
+                .distanceRemainingFormatter(DistanceRemainingFormatter(
+                    DistanceFormatterOptions.Builder(this).build()
+                ))
+                .timeRemainingFormatter(TimeRemainingFormatter(this))
+                .percentRouteTraveledFormatter(PercentDistanceTraveledFormatter())
+                .estimatedTimeOfArrivalFormatter(EstimatedTimeOfArrivalFormatter(this))
+                .build()
+        )
     }
 
     // Set destination point and add a marker
@@ -450,6 +449,10 @@ class MainActivity : ComponentActivity() {
             startNavigationButton.visibility = View.GONE
             cancelButton.visibility = View.VISIBLE
 
+            // 턴 바이 턴 안내 UI 표시
+            maneuverView.visibility = View.VISIBLE
+            tripProgressView.visibility = View.VISIBLE
+
             // Request routes with latest origin and destination
             requestRoute()
         }
@@ -468,6 +471,10 @@ class MainActivity : ComponentActivity() {
         cancelButton.visibility = View.GONE
         startNavigationButton.visibility = View.VISIBLE
         recenterButton.visibility = View.GONE // 네비게이션 취소 시 숨김
+
+        // 턴 바이 턴 안내 UI 숨김
+        maneuverView.visibility = View.GONE
+        tripProgressView.visibility = View.GONE
 
         // Clear routes
         mapboxNavigation.setNavigationRoutes(emptyList())
@@ -561,6 +568,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // 경로 진행 상황 관찰자
+    private val routeProgressObserver = RouteProgressObserver { routeProgress ->
+        // 턴 안내 UI 업데이트
+        val maneuvers = maneuverApi.getManeuvers(routeProgress)
+        maneuverView.renderManeuvers(maneuvers)
+
+        // 경로 진행 정보 UI 업데이트
+        val tripProgress = tripProgressApi.getTripProgress(routeProgress)
+        tripProgressView.render(tripProgress)
+    }
+
     // Define MapboxNavigation
     @OptIn(ExperimentalPreviewMapboxNavigationAPI::class)
     private val mapboxNavigation: MapboxNavigation by requireMapboxNavigation(
@@ -573,12 +591,18 @@ class MainActivity : ComponentActivity() {
 
                 // Start trip session to get real location updates
                 mapboxNavigation.startTripSession()
+
+                // 경로 진행 관찰자 등록
+                mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
             }
 
             override fun onDetached(mapboxNavigation: MapboxNavigation) {
                 // Clean up observers
                 mapboxNavigation.unregisterRoutesObserver(routesObserver)
                 mapboxNavigation.unregisterLocationObserver(locationObserver)
+
+                // 경로 진행 관찰자 해제
+                mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
             }
         },
         onInitialize = this::initNavigation
