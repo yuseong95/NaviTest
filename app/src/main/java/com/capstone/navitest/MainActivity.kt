@@ -39,31 +39,31 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun initializeManagers() {
-        // 언어 매니저 초기화 (다른 매니저가 이를 참조할 수 있음)
+        // 먼저 언어와 권한 관리자 초기화
         languageManager = LanguageManager(this)
-
-        // 맵 초기화 매니저 생성
-        mapInitializer = MapInitializer(this, languageManager)
-
-        // 권한 도우미 초기화 - languageManager 추가
         permissionHelper = PermissionHelper(this, languageManager)
-        permissionHelper.setPermissionCallback(object : PermissionHelper.PermissionCallback {
-            override fun onPermissionGranted() {
-                // 권한 허용 시 초기화 계속 진행
-                initializeAfterPermissionGranted()
-            }
 
-            override fun onPermissionDenied() {
-                // 권한 거부 시 별도 처리 없음 (Toast는 PermissionHelper에서 표시)
-            }
-        })
-
-        // 오프라인 타일 매니저 초기화
+        // 권한이 필요하지 않은 맵 컴포넌트 초기화
+        mapInitializer = MapInitializer(this, languageManager)
         offlineTileManager = OfflineTileManager(
             this,
             mapInitializer.getTileStore(),
             languageManager
         )
+
+        // 내비게이션 의존성 없이 먼저 UI 설정
+        navigationUI = NavigationUI(this, languageManager)
+
+        // 권한 콜백을 설정하여 나중에 내비게이션 컴포넌트 초기화
+        permissionHelper.setPermissionCallback(object : PermissionHelper.PermissionCallback {
+            override fun onPermissionGranted() {
+                initializeAfterPermissionGranted()
+            }
+
+            override fun onPermissionDenied() {
+                // 필요한 경우 여기서 토스트 표시
+            }
+        })
     }
 
     fun initializeAfterPermissionGranted() {
@@ -77,41 +77,37 @@ class MainActivity : ComponentActivity() {
                 mapInitializer.getMapView()
             )
 
-            // UI 매니저 생성
-            navigationUI = NavigationUI(
+            // UI 매니저 생성 - 이미 생성되었다면 이 라인은 필요하지 않음
+            if (!::navigationUI.isInitialized) {
+                navigationUI = NavigationUI(
+                    this,
+                    languageManager
+                )
+            }
+
+            // 네비게이션 매니저 초기화 (기존 생성자 매개변수 사용)
+            navigationManager = NavigationManager(
                 this,
-                languageManager
+                lifecycleScope,
+                mapInitializer.getMapView(),
+                mapInitializer,
+                mapInitializer.getTileStore(),
+                languageManager,
+                navigationUI
             )
 
-            try {
-                // 네비게이션 매니저 초기화 (다른 매니저들에 의존)
-                navigationManager = NavigationManager(
-                    this,
-                    lifecycleScope,
-                    mapInitializer.getMapView(),
-                    mapInitializer,
-                    mapInitializer.getTileStore(),
-                    languageManager,
-                    navigationUI
-                )
+            // 위치 관찰자 등록 - NavigationManager가 locationManager를 내부적으로 생성하는 대신
+            // 외부에서 생성된 locationManager의 이벤트를 구독하도록 함
+            locationManager.setLocationChangeListener(navigationManager)
 
-                // UI와 네비게이션 매니저 연결
-                navigationUI.setNavigationManager(navigationManager)
+            // UI와 네비게이션 매니저 연결
+            navigationUI.setNavigationManager(navigationManager)
 
-            } catch (e: Exception) {
-                // 네비게이션 초기화 실패 시 처리
-                Log.e("MainActivity", "Error initializing components", e)
-
-                // 기본 지도만 보여주기 위한 처리
-                val message = "내비게이션 초기화 중 오류가 발생했습니다: ${e.message}\n기본 지도 모드로 실행됩니다."
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            }
         } catch (e: Exception) {
-            // 심각한 오류 발생 시 처리
-            Log.e("MainActivity", "Critical error initializing app", e)
+            Log.e("MainActivity", "컴포넌트 초기화 오류", e)
             Toast.makeText(
                 this,
-                "앱 초기화 중 심각한 오류가 발생했습니다: ${e.message}",
+                "내비게이션 초기화 중 오류가 발생했습니다: ${e.message}\n기본 지도 모드로 실행됩니다.",
                 Toast.LENGTH_LONG
             ).show()
         }

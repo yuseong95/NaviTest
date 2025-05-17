@@ -60,17 +60,23 @@ class NavigationUI(
 
     private fun setupButtonListeners() {
         startNavigationButton.setOnClickListener {
-            navigationManager.startNavigation()
-            updateUIForNavigationStart()
+            if (::navigationManager.isInitialized) {
+                navigationManager.startNavigation()
+                updateUIForNavigationStart()
+            }
         }
 
         cancelButton.setOnClickListener {
-            navigationManager.cancelNavigation()
-            updateUIForNavigationCancel()
+            if (::navigationManager.isInitialized) {
+                navigationManager.cancelNavigation()
+                updateUIForNavigationCancel()
+            }
         }
 
         recenterButton.setOnClickListener {
-            navigationManager.recenterCamera()
+            if (::navigationManager.isInitialized) {
+                navigationManager.recenterCamera()
+            }
         }
     }
 

@@ -197,9 +197,9 @@ class NavigationManager(
     @SuppressLint("MissingPermission")
     private fun initializeNavigation() {
         try {
-            Log.d("NavigationManager", "Initializing MapboxNavigation...")
+            Log.d("NavigationManager", "MapboxNavigation 초기화 중...")
 
-            // MapboxNavigation 초기화
+            // MapboxNavigationApp은 한 번만 초기화하고 MapboxNavigation 요청 전에 초기화
             val routingTilesOptions = RoutingTilesOptions.Builder()
                 .tileStore(tileStore)
                 .build()
@@ -209,19 +209,22 @@ class NavigationManager(
                 .navigatorPredictionMillis(3000)
                 .build()
 
-            // MapboxNavigationApp 설정
-            MapboxNavigationApp.setup(navOptions)
+            // 명시적 MapboxNavigationApp 설정
+            if (!MapboxNavigationApp.isSetup()) {
+                MapboxNavigationApp.setup(navOptions)
+            }
 
-            // MapboxNavigation 생성 (null 체크 추가)
+            // 내비게이션 인스턴스를 안전하게 가져오기
             val navigation = MapboxNavigationApp.current()
-                ?: throw IllegalStateException("MapboxNavigationApp.current() returned null")
+            if (navigation == null) {
+                throw IllegalStateException("MapboxNavigationApp.current()가 null을 반환했습니다")
+            }
 
             _mapboxNavigation = navigation
-            Log.d("NavigationManager", "MapboxNavigation initialized successfully")
-
+            Log.d("NavigationManager", "MapboxNavigation이 성공적으로 초기화되었습니다")
         } catch (e: Exception) {
-            Log.e("NavigationManager", "Failed to initialize MapboxNavigation", e)
-            throw IllegalStateException("Failed to initialize MapboxNavigation: ${e.message}")
+            Log.e("NavigationManager", "MapboxNavigation 초기화 실패", e)
+            throw IllegalStateException("MapboxNavigation 초기화 실패: ${e.message}")
         }
     }
 
