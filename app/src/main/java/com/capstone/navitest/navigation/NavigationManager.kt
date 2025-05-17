@@ -230,6 +230,17 @@ class NavigationManager(
     fun onNavigationAttached(mapboxNavigation: MapboxNavigation) {
         Log.d("NavigationManager", "Navigation attached")
 
+        // MapboxNavigation 인스턴스 설정
+        if (!::mapboxNavigation.isInitialized) {
+            this.mapboxNavigation = mapboxNavigation
+
+            // 경로 관리자 초기화 - MapboxNavigation이 설정된 후에 초기화
+            routeManager = RouteManager(context, mapboxNavigation, languageManager)
+            routeManager.setRouteChangeListener(this)
+
+            Log.d("NavigationManager", "Navigation manager initialization completed")
+        }
+
         // 관찰자 등록
         mapboxNavigation.registerRoutesObserver(routesObserver)
         mapboxNavigation.registerLocationObserver(locationObserver)
