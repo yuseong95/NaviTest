@@ -199,29 +199,54 @@ class NavigationManager(
         try {
             Log.d("NavigationManager", "MapboxNavigation 초기화 중...")
 
-            // MapboxNavigationApp은 한 번만 초기화하고 MapboxNavigation 요청 전에 초기화
+            // 1. 먼저 tileStore 기반 RoutingTilesOptions 만들기
             val routingTilesOptions = RoutingTilesOptions.Builder()
                 .tileStore(tileStore)
                 .build()
 
+            // 2. 위 옵션을 포함한 NavigationOptions 만들기
             val navOptions = NavigationOptions.Builder(context)
                 .routingTilesOptions(routingTilesOptions)
-                .navigatorPredictionMillis(3000)
+                .navigatorPredictionMillis(3000) // 기본값 보다 큰 값으로 설정
                 .build()
 
-            // 명시적 MapboxNavigationApp 설정
+            // 3. 명시적으로 MapboxNavigationApp을 설정
             if (!MapboxNavigationApp.isSetup()) {
+                Log.d("NavigationManager", "MapboxNavigationApp 설정 중...")
                 MapboxNavigationApp.setup(navOptions)
             }
 
-            // 내비게이션 인스턴스를 안전하게 가져오기
-            val navigation = MapboxNavigationApp.current()
-            if (navigation == null) {
+            // 잠시 기다려서 초기화가 완료될 시간을 줌
+            try {
+                Thread.sleep(100)
+            } catch (e: InterruptedException) {
+                Log.w("NavigationManager", "초기화 대기 중 인터럽트됨", e)
+            }
+
+            // 내비게이션 인스턴스 가져오기 (최대 3번 시도)
+            var navigation: MapboxNavigation? = null
+            var attempt = 0
+
+            while (navigation == null && attempt < 3) {
+                navigation = MapboxNavigationApp.current()
+                if (navigation == null) {
+                    attempt++
+                    Log.d("NavigationManager", "Navigation 인스턴스 시도 $attempt/3 실패, 다시 시도...")
+                    try {
+                        Thread.sleep(200) // 더 긴 대기 시간
+                    } catch (e: InterruptedException) {
+                        Log.w("NavigationManager", "재시도 대기 중 인터럽트됨", e)
+                    }
+                }
+            }
+
+            if (navigation != null) {
+                _mapboxNavigation = navigation
+                Log.d("NavigationManager", "MapboxNavigation이 성공적으로 초기화되었습니다")
+            } else {
                 throw IllegalStateException("MapboxNavigationApp.current()가 null을 반환했습니다")
             }
 
-            _mapboxNavigation = navigation
-            Log.d("NavigationManager", "MapboxNavigation이 성공적으로 초기화되었습니다")
         } catch (e: Exception) {
             Log.e("NavigationManager", "MapboxNavigation 초기화 실패", e)
             throw IllegalStateException("MapboxNavigation 초기화 실패: ${e.message}")
