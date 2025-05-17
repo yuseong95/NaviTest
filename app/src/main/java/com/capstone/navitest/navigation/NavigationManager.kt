@@ -11,6 +11,7 @@ import com.capstone.navitest.ui.LanguageManager
 import com.capstone.navitest.ui.NavigationUI
 import com.mapbox.common.TileStore
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.MapView
 import com.mapbox.maps.plugin.animation.camera
@@ -81,6 +82,9 @@ class NavigationManager(
     // MapboxNavigation 인스턴스는 MainActivity에서 전달받음
     private lateinit var mapboxNavigation: MapboxNavigation
 
+    // 카메라 초기화 추적
+    private var hasInitializedCamera = false
+
     init {
         try {
             Log.d("NavigationManager", "Initializing navigation components")
@@ -111,16 +115,19 @@ class NavigationManager(
         }
     }
 
-    // MapboxNavigation 설정 메서드 - MainActivity에서 호출됨
+    // MapboxNavigation 설정 메서드
     fun setMapboxNavigation(navigation: MapboxNavigation) {
         Log.d("NavigationManager", "Setting MapboxNavigation instance")
-        mapboxNavigation = navigation
 
-        // 경로 관리자 초기화 - MapboxNavigation이 설정된 후에 초기화
-        routeManager = RouteManager(context, mapboxNavigation, languageManager)
-        routeManager.setRouteChangeListener(this)
+        if (!::mapboxNavigation.isInitialized) {
+            mapboxNavigation = navigation
 
-        Log.d("NavigationManager", "Navigation manager initialization completed")
+            // 경로 관리자 초기화 - MapboxNavigation이 설정된 후에 초기화
+            routeManager = RouteManager(context, mapboxNavigation, languageManager)
+            routeManager.setRouteChangeListener(this)
+
+            Log.d("NavigationManager", "Navigation manager initialization completed")
+        }
     }
 
     private fun initializeNavigationComponents() {
@@ -230,18 +237,10 @@ class NavigationManager(
     fun onNavigationAttached(mapboxNavigation: MapboxNavigation) {
         Log.d("NavigationManager", "Navigation attached")
 
-        // MapboxNavigation 인스턴스 설정
-        if (!::mapboxNavigation.isInitialized) {
-            this.mapboxNavigation = mapboxNavigation
+        // MapboxNavigation 인스턴스 설정 - 코드 중복 제거를 위해 setMapboxNavigation() 호출
+        setMapboxNavigation(mapboxNavigation)
 
-            // 경로 관리자 초기화 - MapboxNavigation이 설정된 후에 초기화
-            routeManager = RouteManager(context, mapboxNavigation, languageManager)
-            routeManager.setRouteChangeListener(this)
-
-            Log.d("NavigationManager", "Navigation manager initialization completed")
-        }
-
-        // 관찰자 등록
+        // 관찰자 등록 - setMapboxNavigation()에서 하지 않은 추가 작업들만 여기서 수행
         mapboxNavigation.registerRoutesObserver(routesObserver)
         mapboxNavigation.registerLocationObserver(locationObserver)
         mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
@@ -297,24 +296,39 @@ class NavigationManager(
         override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
             val enhancedLocation = locationMatcherResult.enhancedLocation
 
-            // 위치 변경 리스너에게 알림
+            // 현재 위치 포인트 생성
             val currentLocation = Point.fromLngLat(
                 enhancedLocation.longitude,
                 enhancedLocation.latitude
             )
 
-            // 위치 변경 리스너에게 알림
-            onLocationChanged(currentLocation)
+            // 로그 추가
+            Log.d("NavigationManager", "New location: ${enhancedLocation.longitude}, ${enhancedLocation.latitude}")
 
-            // 맵 위치 업데이트
+            // 위치 관리자에 위치 설정 (이 부분이 중요)
+            locationManager.updateCurrentLocation(currentLocation)
+
+            // 네비게이션 위치 제공자 업데이트
             navigationLocationProvider.changePosition(
                 location = enhancedLocation,
                 keyPoints = locationMatcherResult.keyPoints,
             )
 
-            // 위치 데이터를 뷰포트 소스에 전달
+            // 뷰포트 업데이트
             viewportDataSource.onLocationChanged(enhancedLocation)
             viewportDataSource.evaluate()
+
+            // 첫 위치 수신 시 카메라 위치 설정 - 이중 안전장치
+            if (!hasInitializedCamera) {
+                mapView.mapboxMap.setCamera(
+                    CameraOptions.Builder()
+                        .center(currentLocation)
+                        .zoom(15.0)
+                        .build()
+                )
+                hasInitializedCamera = true
+                Log.d("NavigationManager", "Camera initialized to user location in NavigationManager")
+            }
         }
     }
 

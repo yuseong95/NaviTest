@@ -14,6 +14,8 @@ import com.capstone.navitest.ui.NavigationUI
 import com.capstone.navitest.utils.PermissionHelper
 import com.mapbox.common.MapboxOptions
 import com.mapbox.common.TileStore
+import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.options.RoutingTilesOptions
 import com.mapbox.navigation.core.MapboxNavigation
@@ -163,8 +165,16 @@ class MainActivity : ComponentActivity() {
             // 맵 초기화
             mapInitializer.initializeMap()
 
-            // 여기서는 NavigationManager를 초기화하지 않습니다.
-            // NavigationManager는 MapboxNavigationObserver의 onAttached 콜백에서 초기화됩니다.
+            // 명시적인 카메라 위치 설정 추가
+            val seoulLocation = Point.fromLngLat(126.978, 37.566) // 서울 시청 좌표(임시로 사용)
+            mapInitializer.getMapView().mapboxMap.setCamera(
+                CameraOptions.Builder()
+                    .center(seoulLocation)
+                    .zoom(15.0)
+                    .build()
+            )
+
+            Log.d("MainActivity", "Initial camera position set")
 
             Log.d("MainActivity", "Initialization after permission completed")
         } catch (e: Exception) {
