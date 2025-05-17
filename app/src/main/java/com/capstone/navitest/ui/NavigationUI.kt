@@ -150,12 +150,12 @@ class NavigationUI(
         recenterButton.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
-    // Expected 타입을 직접 받아 처리 - 패키지 경로 수정
+    // Expected 타입을 직접 받아 처리
     fun updateManeuverView(maneuversResult: Expected<ManeuverError, List<Maneuver>>) {
         maneuverView.renderManeuvers(maneuversResult)
     }
 
-    // TripProgressUpdateValue 타입 사용 - 타입 이름 수정
+    // TripProgressUpdateValue 타입 사용
     fun updateTripProgressView(tripProgress: TripProgressUpdateValue) {
         tripProgressView.render(tripProgress)
     }

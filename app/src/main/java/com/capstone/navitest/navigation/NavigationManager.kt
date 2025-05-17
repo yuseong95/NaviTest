@@ -116,8 +116,6 @@ class NavigationManager(
     @SuppressLint("MissingPermission")
     private fun initializeNavigation() {
         try {
-            Log.d("NavigationManager", "MapboxNavigation 초기화 중...")
-
             // 1. RoutingTilesOptions 생성
             val routingTilesOptions = RoutingTilesOptions.Builder()
                 .tileStore(tileStore)
@@ -129,29 +127,14 @@ class NavigationManager(
                 .navigatorPredictionMillis(3000)
                 .build()
 
-            // 3. MapboxNavigationApp 설정
+            // 3. MapboxNavigationApp 설정 방식 수정
             if (!MapboxNavigationApp.isSetup()) {
                 MapboxNavigationApp.setup(navOptions)
-                // 초기화 완료될 시간 주기
-                Thread.sleep(200)
             }
 
-            // 4. 현재 MapboxNavigation 인스턴스 가져오기
-            var attempts = 0
-            while (attempts < 3) {
-                val navigation = MapboxNavigationApp.current()
-                if (navigation != null) {
-                    mapboxNavigation = navigation
-                    break
-                }
-                attempts++
-                Thread.sleep(200)
-                Log.d("NavigationManager", "Trying to get navigation instance: attempt $attempts")
-            }
-
-            if (!::mapboxNavigation.isInitialized) {
-                throw IllegalStateException("Failed to get MapboxNavigation instance after multiple attempts")
-            }
+            // 4. requireMapboxNavigation 사용 대신 MapboxNavigationApp.current() 사용 후 null 체크
+            mapboxNavigation = MapboxNavigationApp.current()
+                ?: throw IllegalStateException("Failed to get MapboxNavigation instance")
 
             // 5. 위치 puck 초기화
             mapView.location.apply {
@@ -159,8 +142,6 @@ class NavigationManager(
                 locationPuck = createDefault2DPuck()
                 enabled = true
             }
-
-            Log.d("NavigationManager", "MapboxNavigation 초기화 완료")
         } catch (e: Exception) {
             Log.e("NavigationManager", "MapboxNavigation 초기화 실패", e)
             throw e

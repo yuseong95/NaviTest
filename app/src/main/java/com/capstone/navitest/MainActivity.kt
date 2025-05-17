@@ -66,18 +66,18 @@ class MainActivity : ComponentActivity() {
         })
     }
 
-    fun initializeAfterPermissionGranted() {
+    private fun initializeAfterPermissionGranted() {
         try {
-            // 맵 초기화
+            // 1. 맵 초기화
             mapInitializer.initializeMap()
 
-            // 위치 매니저 초기화
+            // 2. 위치 매니저 초기화
             locationManager = LocationManager(
                 this,
                 mapInitializer.getMapView()
             )
 
-            // 네비게이션 매니저 초기화 - 마지막에 초기화
+            // 3. 네비게이션 매니저 초기화 - 마지막에 초기화
             navigationManager = NavigationManager(
                 this,
                 lifecycleScope,
@@ -88,20 +88,20 @@ class MainActivity : ComponentActivity() {
                 navigationUI
             )
 
-            // 위치 관찰자 등록
+            // 4. 위치 매니저에 위치 변경 리스너 설정 (registerLocationObserver 대신)
             locationManager.setLocationChangeListener(navigationManager)
 
-            // UI와 네비게이션 매니저 연결
+            // 5. UI와 네비게이션 매니저 연결
             navigationUI.setNavigationManager(navigationManager)
 
-            // 맵 클릭 리스너 설정
+            // 6. 맵 클릭 리스너 설정
             initializeMapClickListener()
 
         } catch (e: Exception) {
             Log.e("MainActivity", "컴포넌트 초기화 오류", e)
             Toast.makeText(
                 this,
-                "내비게이션 초기화 중 오류가 발생했습니다: ${e.message}\n기본 지도 모드로 실행됩니다.",
+                "내비게이션 초기화 중 오류가 발생했습니다: ${e.message}",
                 Toast.LENGTH_LONG
             ).show()
         }

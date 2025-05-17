@@ -38,6 +38,11 @@ class LocationManager(
                 enhancedLocation.latitude
             )
 
+            // 위치 변경 리스너에게 알림 - null 체크 추가
+            currentLocation?.let { location ->
+                locationChangeListener?.onLocationChanged(location)
+            }
+
             // 맵 위치 업데이트
             navigationLocationProvider.changePosition(
                 location = enhancedLocation,
@@ -46,18 +51,16 @@ class LocationManager(
 
             // 처음 위치를 받았을 때 카메라 위치 설정
             if (!hasInitializedCamera) {
-                mapView.mapboxMap.setCamera(
-                    CameraOptions.Builder()
-                        .center(currentLocation)
-                        .zoom(15.0)
-                        .build()
-                )
-
-                hasInitializedCamera = true
+                currentLocation?.let { location ->
+                    mapView.mapboxMap.setCamera(
+                        CameraOptions.Builder()
+                            .center(location)
+                            .zoom(15.0)
+                            .build()
+                    )
+                    hasInitializedCamera = true
+                }
             }
-
-            // 위치 변경 리스너에게 알림
-            locationChangeListener?.onLocationChanged(currentLocation!!)
         }
     }
 
