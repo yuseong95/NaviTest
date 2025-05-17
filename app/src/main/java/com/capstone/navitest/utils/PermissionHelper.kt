@@ -7,28 +7,48 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.capstone.navitest.MainActivity
+import com.capstone.navitest.ui.LanguageManager
 
-class PermissionHelper(private val activity: MainActivity, private val callback: PermissionCallback) {
+class PermissionHelper(
+    private val activity: MainActivity,
+    private val languageManager: LanguageManager
+) {
+    private var permissionCallback: PermissionCallback? = null
 
+    // 권한 요청 결과 처리
     private val locationPermissionRequest = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         when {
             permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                     permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> {
-                activity.initializeAfterPermissionGranted()
+                // 권한 허용됨
+                permissionCallback?.onPermissionGranted()
             }
             else -> {
-                showPermissionDeniedMessage()
+                // 권한 거부됨
+                val message = languageManager.getLocalizedString(
+                    "위치 권한이 거부되었습니다. 설정에서 권한을 활성화해주세요.",
+                    "Location permissions denied. Please enable permissions in settings."
+                )
+                Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+                permissionCallback?.onPermissionDenied()
             }
         }
     }
 
+    fun setPermissionCallback(callback: PermissionCallback) {
+        permissionCallback = callback
+    }
+
     fun checkLocationPermissions() {
         if (hasLocationPermissions()) {
-            activity.initializeAfterPermissionGranted()
+            // 이미 권한 있음
+            permissionCallback?.onPermissionGranted()
         } else {
+            // 권한 요청
             requestLocationPermissions()
         }
     }
@@ -45,24 +65,13 @@ class PermissionHelper(private val activity: MainActivity, private val callback:
     }
 
     private fun requestLocationPermissions() {
+        // 원본 코드와 동일한 방식으로 권한 요청
         locationPermissionRequest.launch(
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION
             )
         )
-    }
-
-    private fun showPermissionDeniedMessage() {
-        // 언어 설정에 따른 메시지 출력
-        val message = getLocalizedMessage()
-        Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
-    }
-
-    private fun getLocalizedMessage(): String {
-        // 언어 매니저로부터 현재 언어 설정을 가져와 메시지 반환
-        // 임시 구현
-        return "위치 권한이 거부되었습니다. 설정에서 권한을 활성화해주세요."
     }
 
     interface PermissionCallback {

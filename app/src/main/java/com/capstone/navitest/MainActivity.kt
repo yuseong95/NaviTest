@@ -44,15 +44,16 @@ class MainActivity : ComponentActivity() {
         // 맵 초기화 매니저 생성
         mapInitializer = MapInitializer(this, languageManager)
 
-        // 권한 도우미 초기화
-        permissionHelper = PermissionHelper(this, object : PermissionHelper.PermissionCallback {
+        // 권한 도우미 초기화 - languageManager 추가
+        permissionHelper = PermissionHelper(this, languageManager)
+        permissionHelper.setPermissionCallback(object : PermissionHelper.PermissionCallback {
             override fun onPermissionGranted() {
+                // 권한 허용 시 초기화 계속 진행
                 initializeAfterPermissionGranted()
             }
 
             override fun onPermissionDenied() {
-                // 권한 거부 시 처리
-                showPermissionRequiredMessage()
+                // 권한 거부 시 별도 처리 없음 (Toast는 PermissionHelper에서 표시)
             }
         })
 
