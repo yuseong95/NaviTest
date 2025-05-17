@@ -2,31 +2,30 @@ package com.capstone.navitest.navigation
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LifecycleCoroutineScope
-import androidx.lifecycle.lifecycleScope
 import com.capstone.navitest.map.MapInitializer
 import com.capstone.navitest.map.MarkerManager
 import com.capstone.navitest.ui.LanguageManager
 import com.capstone.navitest.ui.NavigationUI
+import com.mapbox.android.core.permissions.PermissionsManager
 import com.mapbox.common.TileStore
 import com.mapbox.common.location.Location
 import com.mapbox.geojson.Point
-import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.animation.camera
-import com.mapbox.maps.plugin.gestures.addOnMapClickListener
+import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
+import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.options.RoutingTilesOptions
 import com.mapbox.navigation.base.route.NavigationRoute
-import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
-import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
 import com.mapbox.navigation.tripdata.maneuver.api.MapboxManeuverApi
 import com.mapbox.navigation.tripdata.progress.api.MapboxTripProgressApi
@@ -77,12 +76,32 @@ class NavigationManager(
     // 네비게이션 상태
     private var isNavigating = false
 
-    private lateinit var mapboxNavigation: MapboxNavigation
+    // 지연 초기화를 위한 private 백킹 필드
+    private var _mapboxNavigation: MapboxNavigation? = null
+
+    // 안전한 getter 제공
+    private val mapboxNavigation: MapboxNavigation
+        get() = _mapboxNavigation ?: throw IllegalStateException(
+            "MapboxNavigation is not initialized. Call initializeNavigation() first."
+        )
 
     init {
-        initializeNavigationComponents()
-        initializeNavigation()
-        setupMapClickListener()
+        try {
+            // 기본 컴포넌트 초기화
+            initializeNavigationComponents()
+
+            // 네비게이션 초기화
+            initializeNavigation()
+
+            // 컴포넌트 초기화 후 경로 관리자 설정
+            initializeRouteManager()
+
+            // 맵 클릭 리스너 설정
+            setupMapClickListener()
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error initializing navigation", e)
+            throw IllegalStateException("Failed to initialize navigation: ${e.message}")
+        }
     }
 
     private fun initializeNavigationComponents() {
@@ -175,95 +194,141 @@ class NavigationManager(
         )
     }
 
-    private fun setupMapClickListener() {
-        // 맵 클릭 리스너 설정
-        mapView.mapboxMap.addOnMapClickListener { point ->
-            // 네비게이션 중이 아닐 때만 목적지 설정 가능
-            if (!isNavigating) {
-                // 마커 추가 및 목적지 설정
-                val destination = markerManager.addMarker(point)
-                routeManager.setDestination(destination)
+    @SuppressLint("MissingPermission")
+    private fun initializeNavigation() {
+        try {
+            Log.d("NavigationManager", "Initializing MapboxNavigation...")
 
-                // 시작 버튼 활성화
-                navigationUI.setStartButtonEnabled(true)
+            // MapboxNavigation 초기화
+            val routingTilesOptions = RoutingTilesOptions.Builder()
+                .tileStore(tileStore)
+                .build()
+
+            val navOptions = NavigationOptions.Builder(context)
+                .routingTilesOptions(routingTilesOptions)
+                .navigatorPredictionMillis(3000)
+                .build()
+
+            // MapboxNavigationApp 설정
+            MapboxNavigationApp.setup(navOptions)
+
+            // MapboxNavigation 생성 (null 체크 추가)
+            val navigation = MapboxNavigationApp.current()
+                ?: throw IllegalStateException("MapboxNavigationApp.current() returned null")
+
+            _mapboxNavigation = navigation
+            Log.d("NavigationManager", "MapboxNavigation initialized successfully")
+
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Failed to initialize MapboxNavigation", e)
+            throw IllegalStateException("Failed to initialize MapboxNavigation: ${e.message}")
+        }
+    }
+
+    // 초기화 이후 별도로 호출하여 경로 관리자 및 관찰자 설정
+    @SuppressLint("MissingPermission")
+    private fun initializeRouteManager() {
+        try {
+            Log.d("NavigationManager", "Initializing RouteManager...")
+
+            // 경로 관리자 초기화
+            routeManager = RouteManager(context, mapboxNavigation, languageManager)
+            routeManager.setRouteChangeListener(this)
+
+            // 관찰자 등록
+            registerObservers(mapboxNavigation)
+
+            // 트립 세션 시작 - 권한 체크 추가
+            if (PermissionsManager.areLocationPermissionsGranted(context)) {
+                mapboxNavigation.startTripSession()
+            } else {
+                Log.w("NavigationManager", "Location permissions not granted, trip session not started")
             }
-            true
+
+            Log.d("NavigationManager", "RouteManager initialized successfully")
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Failed to initialize RouteManager", e)
+            throw IllegalStateException("Failed to initialize RouteManager: ${e.message}")
+        }
+    }
+
+    private fun setupMapClickListener() {
+        try {
+            // gesture 플러그인을 사용하여 맵 클릭 리스너 설정
+            mapView.gestures.addOnMapClickListener { point ->
+                // 네비게이션 중이 아닐 때만 목적지 설정 가능
+                if (!isNavigating) {
+                    // 마커 추가 및 목적지 설정
+                    val destination = markerManager.addMarker(point)
+                    routeManager.setDestination(destination)
+
+                    // 시작 버튼 활성화
+                    navigationUI.setStartButtonEnabled(true)
+                }
+                true
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Failed to setup map click listener", e)
         }
     }
 
     @SuppressLint("MissingPermission")
-    private fun initializeNavigation() {
-        // MapboxNavigation 초기화
-        val routingTilesOptions = RoutingTilesOptions.Builder()
-            .tileStore(tileStore)
-            .build()
-
-        val navOptions = NavigationOptions.Builder(context)
-            .routingTilesOptions(routingTilesOptions)
-            .navigatorPredictionMillis(3000)
-            .build()
-
-        // MapboxNavigationApp 설정
-        MapboxNavigationApp.setup(navOptions)
-
-        // MapboxNavigation 생성
-        mapboxNavigation = MapboxNavigationApp.current()!!  // null 체크 필요
-
-        // 관찰자 등록
-        registerObservers(mapboxNavigation)
-
-        // 경로 관리자 초기화
-        routeManager = RouteManager(context, mapboxNavigation, languageManager)
-        routeManager.setRouteChangeListener(this)
-
-        // 트립 세션 시작
-        mapboxNavigation.startTripSession()
-    }
-
-    @SuppressLint("MissingPermission")
     private fun registerObservers(mapboxNavigation: MapboxNavigation) {
-        // 경로 관찰자 등록
-        mapboxNavigation.registerRoutesObserver(routesObserver)
+        try {
+            // 경로 관찰자 등록
+            mapboxNavigation.registerRoutesObserver(routesObserver)
 
-        // 위치 관찰자 등록
-        mapboxNavigation.registerLocationObserver(locationManager.locationObserver)
+            // 위치 관찰자 등록
+            mapboxNavigation.registerLocationObserver(locationManager.locationObserver)
 
-        // 경로 진행 관찰자 등록
-        mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+            // 경로 진행 관찰자 등록
+            mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Failed to register observers", e)
+            throw IllegalStateException("Failed to register navigation observers: ${e.message}")
+        }
     }
 
     // 경로 관찰자
     private val routesObserver = RoutesObserver { routeUpdateResult ->
         if (routeUpdateResult.navigationRoutes.isNotEmpty()) {
-            // 경로 라인 생성 및 렌더링
-            routeLineApi.setNavigationRoutes(routeUpdateResult.navigationRoutes) { value ->
-                mapView.mapboxMap.style?.apply {
-                    routeLineView.renderRouteDrawData(this, value)
+            try {
+                // 경로 라인 생성 및 렌더링
+                routeLineApi.setNavigationRoutes(routeUpdateResult.navigationRoutes) { value ->
+                    mapView.mapboxMap.style?.apply {
+                        routeLineView.renderRouteDrawData(this, value)
+                    }
                 }
-            }
 
-            // 뷰포트 데이터 소스 경로 변경 알림
-            viewportDataSource.onRouteChanged(routeUpdateResult.navigationRoutes.first())
-            viewportDataSource.evaluate()
+                // 뷰포트 데이터 소스 경로 변경 알림
+                viewportDataSource.onRouteChanged(routeUpdateResult.navigationRoutes.first())
+                viewportDataSource.evaluate()
 
-            // 네비게이션 상태에 따라 카메라 위치 요청
-            if (isNavigating) {
-                navigationCamera.requestNavigationCameraToFollowing()
-            } else {
-                navigationCamera.requestNavigationCameraToOverview()
+                // 네비게이션 상태에 따라 카메라 위치 요청
+                if (isNavigating) {
+                    navigationCamera.requestNavigationCameraToFollowing()
+                } else {
+                    navigationCamera.requestNavigationCameraToOverview()
+                }
+            } catch (e: Exception) {
+                Log.e("NavigationManager", "Error processing route update", e)
             }
         }
     }
 
     // 경로 진행 관찰자
     private val routeProgressObserver = RouteProgressObserver { routeProgress ->
-        // 턴 안내 정보 업데이트 - Expected 객체를 직접 전달
-        val maneuversResult = maneuverApi.getManeuvers(routeProgress)
-        navigationUI.updateManeuverView(maneuversResult)
+        try {
+            // 턴 안내 정보 업데이트 - Expected 객체를 직접 전달
+            val maneuversResult = maneuverApi.getManeuvers(routeProgress)
+            navigationUI.updateManeuverView(maneuversResult)
 
-        // 경로 진행 정보 업데이트 - TripProgressUpdateValue 사용
-        val tripProgress = tripProgressApi.getTripProgress(routeProgress)
-        navigationUI.updateTripProgressView(tripProgress)
+            // 경로 진행 정보 업데이트
+            val tripProgress = tripProgressApi.getTripProgress(routeProgress)
+            navigationUI.updateTripProgressView(tripProgress)
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error processing route progress", e)
+        }
     }
 
     // 네비게이션 시작
@@ -337,40 +402,54 @@ class NavigationManager(
 
     // LocationManager.OnLocationChangeListener 구현
     override fun onLocationChanged(location: Point) {
-        // 현재 위치를 경로 관리자에 설정
-        routeManager.setOrigin(location)
+        try {
+            // 현재 위치를 경로 관리자에 설정
+            routeManager.setOrigin(location)
 
-        // 뷰포트 데이터 소스 위치 변경 알림 - Location 객체 필요
-        // com.mapbox.common.location.Location 객체 생성 필요
-        val enhancedLocation = Location.Builder()
-            .longitude(location.longitude())
-            .latitude(location.latitude())
-            .build()
+            // Location 객체 생성 - timestamp() 사용
+            val enhancedLocation = Location.Builder()
+                .longitude(location.longitude())
+                .latitude(location.latitude())
+                .timestamp(System.currentTimeMillis()) // time() -> timestamp()로 변경
+                .build()
 
-        viewportDataSource.onLocationChanged(enhancedLocation)
-        viewportDataSource.evaluate()
+            // 뷰포트 데이터 소스 위치 변경 알림
+            viewportDataSource.onLocationChanged(enhancedLocation)
+            viewportDataSource.evaluate()
 
-        // 네비게이션 중이고 목적지가 설정된 경우 주기적으로 경로 업데이트
-        if (isNavigating && routeManager.getDestination() != null) {
-            routeManager.requestRoute()
+            // 네비게이션 중이고 목적지가 설정된 경우 주기적으로 경로 업데이트
+            if (isNavigating && routeManager.getDestination() != null) {
+                routeManager.requestRoute()
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error handling location change", e)
         }
     }
 
-    // 네비게이션 상태 확인 메서드 추가 (public으로 변경)
+
+    // 네비게이션 상태 확인 메서드
     fun isNavigating(): Boolean {
         return isNavigating
     }
 
-    // 목적지 설정 메서드 추가
+    // 목적지 설정 메서드
     fun setDestination(point: Point) {
-        markerManager.addMarker(point)
-        routeManager.setDestination(point)
-        navigationUI.setStartButtonEnabled(true)
+        try {
+            markerManager.addMarker(point)
+            routeManager.setDestination(point)
+            navigationUI.setStartButtonEnabled(true)
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error setting destination", e)
+        }
     }
 
     // 정리 메소드
     fun cleanup() {
-        // MapboxNavigationApp 비활성화
-        MapboxNavigationApp.disable()
+        try {
+            // MapboxNavigationApp 비활성화
+            MapboxNavigationApp.disable()
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error during cleanup", e)
+        }
     }
 }

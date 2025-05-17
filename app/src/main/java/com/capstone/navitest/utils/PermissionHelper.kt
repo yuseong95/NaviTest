@@ -3,6 +3,7 @@ package com.capstone.navitest.utils
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,21 +22,30 @@ class PermissionHelper(
     private val locationPermissionRequest = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        when {
-            permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                    permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> {
-                // 권한 허용됨
-                permissionCallback?.onPermissionGranted()
+        try {
+            when {
+                permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                        permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> {
+                    // 권한 허용됨
+                    permissionCallback?.onPermissionGranted()
+                }
+                else -> {
+                    // 권한 거부됨
+                    val message = languageManager.getLocalizedString(
+                        "위치 권한이 거부되었습니다. 설정에서 권한을 활성화해주세요.",
+                        "Location permissions denied. Please enable permissions in settings."
+                    )
+                    Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+                    permissionCallback?.onPermissionDenied()
+                }
             }
-            else -> {
-                // 권한 거부됨
-                val message = languageManager.getLocalizedString(
-                    "위치 권한이 거부되었습니다. 설정에서 권한을 활성화해주세요.",
-                    "Location permissions denied. Please enable permissions in settings."
-                )
-                Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
-                permissionCallback?.onPermissionDenied()
-            }
+        } catch (e: Exception) {
+            Log.e("PermissionHelper", "Error handling permission result", e)
+            Toast.makeText(
+                activity,
+                "권한 처리 중 오류가 발생했습니다: ${e.message}",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 

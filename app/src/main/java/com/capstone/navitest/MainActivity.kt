@@ -1,6 +1,7 @@
 package com.capstone.navitest
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.capstone.navitest.map.MapInitializer
@@ -66,37 +67,44 @@ class MainActivity : ComponentActivity() {
     }
 
     fun initializeAfterPermissionGranted() {
-        // 맵 초기화
-        mapInitializer.initializeMap()
+        try {
+            // 맵 초기화
+            mapInitializer.initializeMap()
 
-        // 위치 매니저 초기화
-        locationManager = LocationManager(
-            this,
-            mapInitializer.getMapView()
-        )
+            // 위치 매니저 초기화
+            locationManager = LocationManager(
+                this,
+                mapInitializer.getMapView()
+            )
 
-        // UI 매니저 생성
-        navigationUI = NavigationUI(
-            this,
-            languageManager
-        )
+            // UI 매니저 생성
+            navigationUI = NavigationUI(
+                this,
+                languageManager
+            )
 
-        // 네비게이션 매니저 초기화 (다른 매니저들에 의존)
-        navigationManager = NavigationManager(
-            this,
-            lifecycleScope,
-            mapInitializer.getMapView(),
-            mapInitializer,
-            mapInitializer.getTileStore(),
-            languageManager,
-            navigationUI
-        )
+            // 네비게이션 매니저 초기화 (다른 매니저들에 의존)
+            navigationManager = NavigationManager(
+                this,
+                lifecycleScope,
+                mapInitializer.getMapView(),
+                mapInitializer,
+                mapInitializer.getTileStore(),
+                languageManager,
+                navigationUI
+            )
 
-        // UI와 네비게이션 매니저 연결
-        navigationUI.setNavigationManager(navigationManager)
-
-        // 네비게이션 기능 초기화
-        initializeNavigation()
+            // UI와 네비게이션 매니저 연결
+            navigationUI.setNavigationManager(navigationManager)
+        } catch (e: Exception) {
+            // 예외 처리
+            Log.e("MainActivity", "Error initializing components", e)
+            Toast.makeText(
+                this,
+                "앱 초기화 중 오류가 발생했습니다: ${e.message}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun initializeNavigation() {
