@@ -13,10 +13,6 @@ import com.capstone.navitest.ui.NavigationUI
 import com.capstone.navitest.utils.PermissionHelper
 import com.mapbox.common.MapboxOptions
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-
 
 class MainActivity : ComponentActivity() {
     // 필요한 매니저 클래스들을 선언
@@ -58,14 +54,14 @@ class MainActivity : ComponentActivity() {
         // 내비게이션 의존성 없이 먼저 UI 설정
         navigationUI = NavigationUI(this, languageManager)
 
-        // 권한 콜백을 설정하여 나중에 내비게이션 컴포넌트 초기화
+        // 권한 콜백 설정
         permissionHelper.setPermissionCallback(object : PermissionHelper.PermissionCallback {
             override fun onPermissionGranted() {
                 initializeAfterPermissionGranted()
             }
 
             override fun onPermissionDenied() {
-                // 필요한 경우 여기서 토스트 표시
+                showPermissionRequiredMessage()
             }
         })
     }
@@ -81,41 +77,25 @@ class MainActivity : ComponentActivity() {
                 mapInitializer.getMapView()
             )
 
-            // UI 매니저 생성 - 이미 생성되었다면 이 라인은 필요하지 않음
-            if (!::navigationUI.isInitialized) {
-                navigationUI = NavigationUI(
-                    this,
-                    languageManager
-                )
-            }
+            // 네비게이션 매니저 초기화 - 마지막에 초기화
+            navigationManager = NavigationManager(
+                this,
+                lifecycleScope,
+                mapInitializer.getMapView(),
+                mapInitializer,
+                mapInitializer.getTileStore(),
+                languageManager,
+                navigationUI
+            )
 
-            // 네비게이션 매니저 초기화 (기존 생성자 매개변수 사용)
-            try {
-                navigationManager = NavigationManager(
-                    this,
-                    lifecycleScope,
-                    mapInitializer.getMapView(),
-                    mapInitializer,
-                    mapInitializer.getTileStore(),
-                    languageManager,
-                    navigationUI
-                )
+            // 위치 관찰자 등록
+            locationManager.setLocationChangeListener(navigationManager)
 
-                // 위치 관찰자 등록
-                locationManager.setLocationChangeListener(navigationManager)
+            // UI와 네비게이션 매니저 연결
+            navigationUI.setNavigationManager(navigationManager)
 
-                // UI와 네비게이션 매니저 연결
-                navigationUI.setNavigationManager(navigationManager)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "네비게이션 초기화 실패", e)
-                Toast.makeText(
-                    this,
-                    "내비게이션 초기화 중 오류가 발생했습니다: ${e.message}\n기본 지도 모드로 실행됩니다.",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                // 지도만 표시하는 간단한 모드로 전환하는 코드 (필요 시 추가)
-            }
+            // 맵 클릭 리스너 설정
+            initializeMapClickListener()
 
         } catch (e: Exception) {
             Log.e("MainActivity", "컴포넌트 초기화 오류", e)
@@ -127,8 +107,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun initializeNavigation() {
-        // 맵 클릭 리스너 설정
+    private fun initializeMapClickListener() {
         mapInitializer.setMapClickListener { point ->
             if (!navigationManager.isNavigating()) {
                 navigationManager.setDestination(point)

@@ -17,6 +17,8 @@ import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.gestures.gestures
+import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
+import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
 import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
 import com.mapbox.navigation.base.options.NavigationOptions
@@ -26,6 +28,7 @@ import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
+import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
 import com.mapbox.navigation.tripdata.maneuver.api.MapboxManeuverApi
 import com.mapbox.navigation.tripdata.progress.api.MapboxTripProgressApi
@@ -38,10 +41,12 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
+import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
+import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 import kotlinx.coroutines.launch
 
 class NavigationManager(
@@ -53,6 +58,11 @@ class NavigationManager(
     private val languageManager: LanguageManager,
     private val navigationUI: NavigationUI
 ) : RouteManager.OnRouteChangeListener, LocationManager.OnLocationChangeListener {
+
+    private val navigationLocationProvider = NavigationLocationProvider()
+
+    // MapboxNavigation 인스턴스를 위한 변수
+    private lateinit var mapboxNavigation: MapboxNavigation
 
     // 네비게이션 관련 변수들
     private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
@@ -76,25 +86,24 @@ class NavigationManager(
     // 네비게이션 상태
     private var isNavigating = false
 
-    // 지연 초기화를 위한 private 백킹 필드
-    private var _mapboxNavigation: MapboxNavigation? = null
-
-    // 안전한 getter 제공
-    private val mapboxNavigation: MapboxNavigation
-        get() = _mapboxNavigation ?: throw IllegalStateException(
-            "MapboxNavigation is not initialized. Call initializeNavigation() first."
-        )
-
     init {
         try {
-            // 기본 컴포넌트 초기화
-            initializeNavigationComponents()
+            // 위치 관리자 초기화
+            locationManager = LocationManager(context, mapView)
+            locationManager.setLocationChangeListener(this)
 
-            // 네비게이션 초기화
+            // Navigation SDK 초기화
             initializeNavigation()
 
-            // 컴포넌트 초기화 후 경로 관리자 설정
-            initializeRouteManager()
+            // 다른 컴포넌트 초기화
+            initializeNavigationComponents()
+
+            // 경로 관리자 초기화
+            routeManager = RouteManager(context, mapboxNavigation, languageManager)
+            routeManager.setRouteChangeListener(this)
+
+            // 관찰자 등록
+            registerObservers()
 
             // 맵 클릭 리스너 설정
             setupMapClickListener()
@@ -104,11 +113,61 @@ class NavigationManager(
         }
     }
 
-    private fun initializeNavigationComponents() {
-        // 위치 관리자 초기화
-        locationManager = LocationManager(context, mapView)
-        locationManager.setLocationChangeListener(this)
+    @SuppressLint("MissingPermission")
+    private fun initializeNavigation() {
+        try {
+            Log.d("NavigationManager", "MapboxNavigation 초기화 중...")
 
+            // 1. RoutingTilesOptions 생성
+            val routingTilesOptions = RoutingTilesOptions.Builder()
+                .tileStore(tileStore)
+                .build()
+
+            // 2. NavigationOptions 생성
+            val navOptions = NavigationOptions.Builder(context)
+                .routingTilesOptions(routingTilesOptions)
+                .navigatorPredictionMillis(3000)
+                .build()
+
+            // 3. MapboxNavigationApp 설정
+            if (!MapboxNavigationApp.isSetup()) {
+                MapboxNavigationApp.setup(navOptions)
+                // 초기화 완료될 시간 주기
+                Thread.sleep(200)
+            }
+
+            // 4. 현재 MapboxNavigation 인스턴스 가져오기
+            var attempts = 0
+            while (attempts < 3) {
+                val navigation = MapboxNavigationApp.current()
+                if (navigation != null) {
+                    mapboxNavigation = navigation
+                    break
+                }
+                attempts++
+                Thread.sleep(200)
+                Log.d("NavigationManager", "Trying to get navigation instance: attempt $attempts")
+            }
+
+            if (!::mapboxNavigation.isInitialized) {
+                throw IllegalStateException("Failed to get MapboxNavigation instance after multiple attempts")
+            }
+
+            // 5. 위치 puck 초기화
+            mapView.location.apply {
+                setLocationProvider(navigationLocationProvider)
+                locationPuck = createDefault2DPuck()
+                enabled = true
+            }
+
+            Log.d("NavigationManager", "MapboxNavigation 초기화 완료")
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "MapboxNavigation 초기화 실패", e)
+            throw e
+        }
+    }
+
+    private fun initializeNavigationComponents() {
         // 뷰포트 데이터 소스 초기화
         viewportDataSource = MapboxNavigationViewportDataSource(mapView.mapboxMap)
 
@@ -127,6 +186,28 @@ class NavigationManager(
 
         // 턴 바이 턴 안내 컴포넌트 초기화
         initializeTurnByTurnComponents()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun registerObservers() {
+        try {
+            // 경로 관찰자 등록
+            mapboxNavigation.registerRoutesObserver(routesObserver)
+
+            // 위치 관찰자 등록
+            mapboxNavigation.registerLocationObserver(locationManager.locationObserver)
+
+            // 경로 진행 관찰자 등록
+            mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+
+            // 트립 세션 시작
+            if (PermissionsManager.areLocationPermissionsGranted(context)) {
+                mapboxNavigation.startTripSession()
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Failed to register observers", e)
+            throw IllegalStateException("Failed to register navigation observers: ${e.message}")
+        }
     }
 
     private fun initializeNavigationCamera() {
@@ -194,92 +275,6 @@ class NavigationManager(
         )
     }
 
-    @SuppressLint("MissingPermission")
-    private fun initializeNavigation() {
-        try {
-            Log.d("NavigationManager", "MapboxNavigation 초기화 중...")
-
-            // 1. 먼저 tileStore 기반 RoutingTilesOptions 만들기
-            val routingTilesOptions = RoutingTilesOptions.Builder()
-                .tileStore(tileStore)
-                .build()
-
-            // 2. 위 옵션을 포함한 NavigationOptions 만들기
-            val navOptions = NavigationOptions.Builder(context)
-                .routingTilesOptions(routingTilesOptions)
-                .navigatorPredictionMillis(3000) // 기본값 보다 큰 값으로 설정
-                .build()
-
-            // 3. 명시적으로 MapboxNavigationApp을 설정
-            if (!MapboxNavigationApp.isSetup()) {
-                Log.d("NavigationManager", "MapboxNavigationApp 설정 중...")
-                MapboxNavigationApp.setup(navOptions)
-            }
-
-            // 잠시 기다려서 초기화가 완료될 시간을 줌
-            try {
-                Thread.sleep(100)
-            } catch (e: InterruptedException) {
-                Log.w("NavigationManager", "초기화 대기 중 인터럽트됨", e)
-            }
-
-            // 내비게이션 인스턴스 가져오기 (최대 3번 시도)
-            var navigation: MapboxNavigation? = null
-            var attempt = 0
-
-            while (navigation == null && attempt < 3) {
-                navigation = MapboxNavigationApp.current()
-                if (navigation == null) {
-                    attempt++
-                    Log.d("NavigationManager", "Navigation 인스턴스 시도 $attempt/3 실패, 다시 시도...")
-                    try {
-                        Thread.sleep(200) // 더 긴 대기 시간
-                    } catch (e: InterruptedException) {
-                        Log.w("NavigationManager", "재시도 대기 중 인터럽트됨", e)
-                    }
-                }
-            }
-
-            if (navigation != null) {
-                _mapboxNavigation = navigation
-                Log.d("NavigationManager", "MapboxNavigation이 성공적으로 초기화되었습니다")
-            } else {
-                throw IllegalStateException("MapboxNavigationApp.current()가 null을 반환했습니다")
-            }
-
-        } catch (e: Exception) {
-            Log.e("NavigationManager", "MapboxNavigation 초기화 실패", e)
-            throw IllegalStateException("MapboxNavigation 초기화 실패: ${e.message}")
-        }
-    }
-
-    // 초기화 이후 별도로 호출하여 경로 관리자 및 관찰자 설정
-    @SuppressLint("MissingPermission")
-    private fun initializeRouteManager() {
-        try {
-            Log.d("NavigationManager", "Initializing RouteManager...")
-
-            // 경로 관리자 초기화
-            routeManager = RouteManager(context, mapboxNavigation, languageManager)
-            routeManager.setRouteChangeListener(this)
-
-            // 관찰자 등록
-            registerObservers(mapboxNavigation)
-
-            // 트립 세션 시작 - 권한 체크 추가
-            if (PermissionsManager.areLocationPermissionsGranted(context)) {
-                mapboxNavigation.startTripSession()
-            } else {
-                Log.w("NavigationManager", "Location permissions not granted, trip session not started")
-            }
-
-            Log.d("NavigationManager", "RouteManager initialized successfully")
-        } catch (e: Exception) {
-            Log.e("NavigationManager", "Failed to initialize RouteManager", e)
-            throw IllegalStateException("Failed to initialize RouteManager: ${e.message}")
-        }
-    }
-
     private fun setupMapClickListener() {
         try {
             // gesture 플러그인을 사용하여 맵 클릭 리스너 설정
@@ -297,23 +292,6 @@ class NavigationManager(
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Failed to setup map click listener", e)
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun registerObservers(mapboxNavigation: MapboxNavigation) {
-        try {
-            // 경로 관찰자 등록
-            mapboxNavigation.registerRoutesObserver(routesObserver)
-
-            // 위치 관찰자 등록
-            mapboxNavigation.registerLocationObserver(locationManager.locationObserver)
-
-            // 경로 진행 관찰자 등록
-            mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
-        } catch (e: Exception) {
-            Log.e("NavigationManager", "Failed to register observers", e)
-            throw IllegalStateException("Failed to register navigation observers: ${e.message}")
         }
     }
 
@@ -474,6 +452,17 @@ class NavigationManager(
     // 정리 메소드
     fun cleanup() {
         try {
+            // 관찰자 해제
+            if (::mapboxNavigation.isInitialized) {
+                try {
+                    mapboxNavigation.unregisterRoutesObserver(routesObserver)
+                    mapboxNavigation.unregisterLocationObserver(locationManager.locationObserver)
+                    mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
+                } catch (e: Exception) {
+                    Log.e("NavigationManager", "Error unregistering observers", e)
+                }
+            }
+
             // MapboxNavigationApp 비활성화
             MapboxNavigationApp.disable()
         } catch (e: Exception) {
