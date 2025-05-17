@@ -83,25 +83,35 @@ class MainActivity : ComponentActivity() {
                 languageManager
             )
 
-            // 네비게이션 매니저 초기화 (다른 매니저들에 의존)
-            navigationManager = NavigationManager(
-                this,
-                lifecycleScope,
-                mapInitializer.getMapView(),
-                mapInitializer,
-                mapInitializer.getTileStore(),
-                languageManager,
-                navigationUI
-            )
+            try {
+                // 네비게이션 매니저 초기화 (다른 매니저들에 의존)
+                navigationManager = NavigationManager(
+                    this,
+                    lifecycleScope,
+                    mapInitializer.getMapView(),
+                    mapInitializer,
+                    mapInitializer.getTileStore(),
+                    languageManager,
+                    navigationUI
+                )
 
-            // UI와 네비게이션 매니저 연결
-            navigationUI.setNavigationManager(navigationManager)
+                // UI와 네비게이션 매니저 연결
+                navigationUI.setNavigationManager(navigationManager)
+
+            } catch (e: Exception) {
+                // 네비게이션 초기화 실패 시 처리
+                Log.e("MainActivity", "Error initializing components", e)
+
+                // 기본 지도만 보여주기 위한 처리
+                val message = "내비게이션 초기화 중 오류가 발생했습니다: ${e.message}\n기본 지도 모드로 실행됩니다."
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
         } catch (e: Exception) {
-            // 예외 처리
-            Log.e("MainActivity", "Error initializing components", e)
+            // 심각한 오류 발생 시 처리
+            Log.e("MainActivity", "Critical error initializing app", e)
             Toast.makeText(
                 this,
-                "앱 초기화 중 오류가 발생했습니다: ${e.message}",
+                "앱 초기화 중 심각한 오류가 발생했습니다: ${e.message}",
                 Toast.LENGTH_LONG
             ).show()
         }
