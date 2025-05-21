@@ -123,6 +123,9 @@ class NavigationUI(
         cancelButton.visibility = View.VISIBLE
         maneuverView.visibility = View.VISIBLE
         tripProgressView.visibility = View.VISIBLE
+
+        // 내비게이션 활성화 설정 (MainActivity에서 처리)
+        (activity as MainActivity).setNavigationActive(true)
     }
 
     fun updateUIForNavigationCancel() {
@@ -132,6 +135,9 @@ class NavigationUI(
         maneuverView.visibility = View.GONE
         tripProgressView.visibility = View.GONE
         startNavigationButton.isEnabled = false
+
+        // 내비게이션 비활성화 설정 (MainActivity에서 처리)
+        (activity as MainActivity).setNavigationActive(false)
     }
 
     fun showLanguageChangedToast() {

@@ -356,6 +356,7 @@ class NavigationManager(
     }
 
     // 네비게이션 시작
+// 네비게이션 시작
     fun startNavigation() {
         if (::routeManager.isInitialized && routeManager.hasValidRoute()) {
             Log.d("NavigationManager", "Starting navigation")
@@ -370,6 +371,9 @@ class NavigationManager(
             // UI 업데이트
             navigationUI.updateUIForNavigationStart()
 
+            // 내비게이션 상태 업데이트 (기존 코드 대체)
+            (context as? MainActivity)?.setNavigationActive(true)
+
             // 경로 재요청
             routeManager.requestRoute()
 
@@ -377,7 +381,6 @@ class NavigationManager(
         }
     }
 
-    // 네비게이션 취소
     fun cancelNavigation() {
         Log.d("NavigationManager", "Canceling navigation")
 
@@ -390,6 +393,9 @@ class NavigationManager(
 
         // UI 업데이트
         navigationUI.updateUIForNavigationCancel()
+
+        // 내비게이션 상태 업데이트 (기존 코드 대체)
+        (context as? MainActivity)?.setNavigationActive(false)
 
         // 경로 라인 명시적으로 지우기
         if (::routeLineApi.isInitialized) {

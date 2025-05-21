@@ -15,6 +15,7 @@ import com.capstone.navitest.MainActivity
 import com.capstone.navitest.R
 import com.capstone.navitest.map.MarkerManager
 import com.capstone.navitest.ui.LanguageManager
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mapbox.geojson.Point
 import com.mapbox.search.ResponseInfo
 import com.mapbox.search.offline.OfflineResponseInfo
@@ -33,7 +34,8 @@ class SearchUI(
     private val activity: MainActivity,
     private val searchManager: SearchManager,
     private val languageManager: LanguageManager,
-    private val markerManager: MarkerManager
+    private val markerManager: MarkerManager,
+    private val viewModel: SearchButtonViewModel
 ) {
     // UI 컴포넌트
     private val searchBar: EditText = activity.findViewById(R.id.searchEditText)
@@ -189,6 +191,7 @@ class SearchUI(
         hideSearchUI()
     }
 
+    // 메소드 수정
     fun showSearchUI() {
         // 네트워크 연결 확인
         if (!isNetworkAvailable()) {
@@ -212,6 +215,23 @@ class SearchUI(
         searchContainer.visibility = View.GONE
         hideKeyboard()
         searchBar.text.clear()
+    }
+
+
+    private fun setupSearchButton() {
+        searchButton.setOnClickListener {
+            val query = searchBar.text.toString().trim()
+            if (query.isNotEmpty()) {
+                performSearch(query)
+            }
+        }
+    }
+
+    // 뒤로가기 버튼 처리 - ViewModel 사용
+    private fun setupBackButton() {
+        backButton.setOnClickListener {
+            viewModel.closeSearchUI()
+        }
     }
 
     private fun performSearch(query: String) {
@@ -252,5 +272,10 @@ class SearchUI(
         val imm = activity.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
         val view = activity.currentFocus ?: View(activity)
         imm.hideSoftInputFromWindow(view.windowToken, 0)
+    }
+
+    // 검색 UI가 현재 표시 중인지 확인하는 메소드
+    fun isSearchUIVisible(): Boolean {
+        return searchContainer.visibility == View.VISIBLE
     }
 }

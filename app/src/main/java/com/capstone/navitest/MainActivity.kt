@@ -3,6 +3,7 @@ package com.capstone.navitest
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
@@ -26,6 +27,11 @@ import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 import java.io.File
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import com.capstone.navitest.search.SearchButtonViewModel
 
 class MainActivity : ComponentActivity() {
     // 필요한 매니저 클래스들을 선언
@@ -42,6 +48,8 @@ class MainActivity : ComponentActivity() {
 
     // 검색 버튼 참조
     private lateinit var searchFab: FloatingActionButton
+
+    private lateinit var searchButtonViewModel: SearchButtonViewModel
 
     // MapboxNavigation 정의
     private val mapboxNavigation by requireMapboxNavigation(
@@ -96,6 +104,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // ViewModel 초기화
+        searchButtonViewModel = ViewModelProvider(this)[SearchButtonViewModel::class.java]
+
+        // 먼저 searchFab 초기화
+        searchFab = findViewById(R.id.searchFab)
+
+        // ViewModel 상태 관찰 설정
+        observeViewModelState()
+
         // Mapbox 액세스 토큰 설정
         MapboxOptions.accessToken = getString(R.string.mapbox_access_token)
 
@@ -114,6 +131,25 @@ class MainActivity : ComponentActivity() {
         // 검색 컴포넌트 초기화 시도
         if (::navigationManager.isInitialized) {
             initializeSearchComponents()
+        }
+    }
+
+    private fun observeViewModelState() {
+        lifecycleScope.launch {
+            // 검색 버튼 가시성 상태 관찰
+            searchButtonViewModel.isVisible.collectLatest { isVisible ->
+                searchFab.visibility = if (isVisible) View.VISIBLE else View.GONE
+            }
+        }
+
+        lifecycleScope.launch {
+            // 검색 UI 가시성 상태 관찰
+            searchButtonViewModel.isSearchUIVisible.collectLatest { isVisible ->
+                // searchContainer는 SearchUI 클래스에서 관리하도록 수정
+                if (::searchUI.isInitialized) {
+                    if (isVisible) searchUI.showSearchUI() else searchUI.hideSearchUI()
+                }
+            }
         }
     }
 
@@ -144,17 +180,23 @@ class MainActivity : ComponentActivity() {
             // 검색 매니저 초기화
             searchManager = SearchManager(
                 this,
-                navigationManager.getRouteManager(),  // NavigationManager에서 RouteManager 가져옴
+                navigationManager.getRouteManager(),
                 languageManager
             )
 
-            // 검색 UI 초기화
+            // 검색 UI 초기화 - ViewModel 전달
             searchUI = SearchUI(
                 this,
                 searchManager,
                 languageManager,
-                navigationManager.getMarkerManager()  // NavigationManager에서 MarkerManager 가져옴
+                navigationManager.getMarkerManager(),
+                searchButtonViewModel  // ViewModel 전달
             )
+
+            // 검색 버튼 클릭 이벤트 수정
+            searchFab.setOnClickListener {
+                searchButtonViewModel.openSearchUI()  // ViewModel 메소드 호출
+            }
 
             Log.d("MainActivity", "Search components initialized")
         } catch (e: Exception) {
@@ -162,10 +204,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // 내비게이션 상태 확인 메소드 추가
+    fun isNavigationActive(): Boolean {
+        return searchButtonViewModel.navigationActive.value
+    }
+
+    // 메소드 수정: 네비게이션 상태 설정
+    fun setNavigationActive(active: Boolean) {
+        searchButtonViewModel.setNavigationActive(active)
+    }
+
+    // 기존 메소드 수정: 검색 버튼 활성화 상태 설정
     fun setSearchButtonEnabled(enabled: Boolean) {
         if (::searchFab.isInitialized) {
             searchFab.isEnabled = enabled
-            // 시각적으로 버튼 상태 표시
             searchFab.alpha = if (enabled) 1.0f else 0.5f
         }
     }
