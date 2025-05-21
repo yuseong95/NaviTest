@@ -1,6 +1,7 @@
 package com.capstone.navitest.navigation
 
 import android.content.Context
+import android.net.NetworkCapabilities
 import android.util.Log
 import android.widget.Toast
 import com.capstone.navitest.ui.LanguageManager
@@ -12,6 +13,9 @@ import com.mapbox.navigation.base.route.NavigationRoute
 import com.mapbox.navigation.base.route.NavigationRouterCallback
 import com.mapbox.navigation.base.route.RouterFailure
 import com.mapbox.navigation.core.MapboxNavigation
+import android.net.ConnectivityManager
+import android.os.Build
+
 
 class RouteManager(
     private val context: Context,
@@ -24,6 +28,28 @@ class RouteManager(
 
     // 경로 요청 디바운싱을 위한 변수
     private var lastRouteRequestTime = 0L
+
+    // 경로 정보 캐싱 지원을 위한 필드 추가
+    private var cachedRoutes: List<NavigationRoute>? = null
+
+    // 경로 캐싱 처리
+    private fun cacheRoutes(routes: List<NavigationRoute>) {
+        cachedRoutes = routes
+        Log.d("RouteManager", "Routes cached: ${routes.size}")
+    }
+
+    // 캐시된 경로 사용
+    private fun useCachedRoutesIfAvailable(): Boolean {
+        cachedRoutes?.let { routes ->
+            if (routes.isNotEmpty()) {
+                Log.d("RouteManager", "Using cached routes")
+                mapboxNavigation.setNavigationRoutes(routes)
+                routeChangeListener?.onRouteReady(routes)
+                return true
+            }
+        }
+        return false
+    }
 
     // 경로 변경 리스너
     interface OnRouteChangeListener {
@@ -59,6 +85,38 @@ class RouteManager(
     fun requestRoute() {
         val origin = currentOrigin ?: return
         val destination = currentDestination ?: return
+
+        // 네트워크 연결 확인
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val isNetworkAvailable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork ?: return
+            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } else {
+            val networkInfo = connectivityManager.activeNetworkInfo ?: return
+            networkInfo.isConnected
+        }
+
+        // 오프라인 상태이고 캐시된 경로가 있으면 사용
+        if (!isNetworkAvailable) {
+            if (useCachedRoutesIfAvailable()) {
+                // 캐시된 경로 사용 성공
+                val message = languageManager.getLocalizedString(
+                    "오프라인 모드: 캐시된 경로 사용",
+                    "Offline mode: Using cached route"
+                )
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                return
+            } else {
+                // 캐시된 경로 없음
+                val message = languageManager.getLocalizedString(
+                    "오프라인 모드: 새 경로를 계산할 수 없습니다. 인터넷 연결이 필요합니다.",
+                    "Offline mode: Cannot calculate new route. Internet connection required."
+                )
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                return
+            }
+        }
 
         // 로그로 경로 요청 정보 기록
         Log.d("Navigation", "Requesting route from: ${origin.longitude()},${origin.latitude()} to: ${destination.longitude()},${destination.latitude()}")

@@ -2,9 +2,12 @@ package com.capstone.navitest.navigation
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Network
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.LifecycleCoroutineScope
+import com.capstone.navitest.MainActivity
 import com.capstone.navitest.map.MapInitializer
 import com.capstone.navitest.map.MarkerManager
 import com.capstone.navitest.ui.LanguageManager
@@ -48,6 +51,11 @@ import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
 import kotlinx.coroutines.launch
+
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
+
 
 class NavigationManager(
     private val context: Context,
@@ -473,7 +481,90 @@ class NavigationManager(
         }
     }
 
-    // 정리 메소드
+    fun getRouteManager(): RouteManager {
+        if (!::routeManager.isInitialized) {
+            throw IllegalStateException("RouteManager not initialized")
+        }
+        return routeManager
+    }
+
+    fun getMarkerManager(): MarkerManager {
+        if (!::markerManager.isInitialized) {
+            throw IllegalStateException("MarkerManager not initialized")
+        }
+        return markerManager
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+            return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } else {
+            val networkInfo = connectivityManager.activeNetworkInfo ?: return false
+            return networkInfo.isConnected
+        }
+    }
+
+    fun checkNetworkStatus() {
+        val isOnline = isNetworkAvailable()
+        val message = if (isOnline) {
+            languageManager.getLocalizedString(
+                "온라인 모드: 검색 기능 사용 가능",
+                "Online mode: Search feature available"
+            )
+        } else {
+            languageManager.getLocalizedString(
+                "오프라인 모드: 내비게이션만 사용 가능",
+                "Offline mode: Navigation only"
+            )
+        }
+
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+
+        // 검색 버튼 활성화/비활성화 (MainActivity에 메소드 추가 필요)
+        if (context is MainActivity) {
+            context.setSearchButtonEnabled(isOnline)
+        }
+    }
+
+    // 주기적으로 네트워크 상태 확인하는 메소드
+    fun startNetworkMonitoring() {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                // 네트워크 연결됨
+                (context as? MainActivity)?.runOnUiThread {
+                    // 검색 버튼 활성화
+                    (context as? MainActivity)?.setSearchButtonEnabled(true)
+
+                    val message = languageManager.getLocalizedString(
+                        "온라인 모드로 전환: 검색 기능 사용 가능",
+                        "Switched to online mode: Search feature available"
+                    )
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                // 네트워크 연결 끊김
+                (context as? MainActivity)?.runOnUiThread {
+                    // 검색 버튼 비활성화
+                    (context as? MainActivity)?.setSearchButtonEnabled(false)
+
+                    val message = languageManager.getLocalizedString(
+                        "오프라인 모드로 전환: 내비게이션만 사용 가능",
+                        "Switched to offline mode: Navigation only"
+                    )
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+    }
+
+
+        // 정리 메소드
     fun cleanup() {
         try {
             Log.d("NavigationManager", "Cleaning up navigation resources")

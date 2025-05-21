@@ -9,9 +9,12 @@ import androidx.lifecycle.lifecycleScope
 import com.capstone.navitest.map.MapInitializer
 import com.capstone.navitest.map.OfflineTileManager
 import com.capstone.navitest.navigation.NavigationManager
+import com.capstone.navitest.search.SearchManager
+import com.capstone.navitest.search.SearchUI
 import com.capstone.navitest.ui.LanguageManager
 import com.capstone.navitest.ui.NavigationUI
 import com.capstone.navitest.utils.PermissionHelper
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mapbox.common.MapboxOptions
 import com.mapbox.common.TileStore
 import com.mapbox.geojson.Point
@@ -33,14 +36,20 @@ class MainActivity : ComponentActivity() {
     private lateinit var languageManager: LanguageManager
     private lateinit var permissionHelper: PermissionHelper
 
-    // MapboxNavigation 정의 - Ark7에서 사용하던 방식으로 정의
+    // 검색 관련 클래스 추가
+    private lateinit var searchManager: SearchManager
+    private lateinit var searchUI: SearchUI
+
+    // 검색 버튼 참조
+    private lateinit var searchFab: FloatingActionButton
+
+    // MapboxNavigation 정의
     private val mapboxNavigation by requireMapboxNavigation(
         onResumedObserver = object : MapboxNavigationObserver {
             @SuppressLint("MissingPermission")
             override fun onAttached(mapboxNavigation: MapboxNavigation) {
                 Log.d("MainActivity", "Navigation observer attached")
 
-                // NavigationManager가 아직 초기화되지 않았거나 MapboxNavigation이 설정되지 않았다면
                 if (!::navigationManager.isInitialized) {
                     try {
                         // NavigationManager 초기화
@@ -57,8 +66,11 @@ class MainActivity : ComponentActivity() {
                         // UI와 네비게이션 매니저 연결
                         navigationUI.setNavigationManager(navigationManager)
 
-                        // 맵 클릭 리스너 설정
+                        // 지도 클릭 리스너 설정
                         initializeMapClickListener()
+
+                        // 검색 관련 초기화 - 이 시점에서 RouteManager 사용 가능
+                        initializeSearchComponents()
                     } catch (e: Exception) {
                         Log.e("MainActivity", "NavigationManager 초기화 오류", e)
                     }
@@ -80,7 +92,6 @@ class MainActivity : ComponentActivity() {
         }
     )
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -88,14 +99,83 @@ class MainActivity : ComponentActivity() {
         // Mapbox 액세스 토큰 설정
         MapboxOptions.accessToken = getString(R.string.mapbox_access_token)
 
-        // 먼저 MapboxNavigationApp 설정
+        // MapboxNavigationApp 설정
         setupMapboxNavigation()
 
-        // 각 매니저 초기화
+        // 기본 매니저 초기화
         initializeManagers()
+
+        // 검색 버튼 초기화
+        initializeSearchButton()
 
         // 권한 확인 및 요청
         permissionHelper.checkLocationPermissions()
+
+        // 검색 컴포넌트 초기화 시도
+        if (::navigationManager.isInitialized) {
+            initializeSearchComponents()
+        }
+    }
+
+    private fun initializeSearchButton() {
+        searchFab = findViewById(R.id.searchFab)
+        searchFab.setOnClickListener {
+            if (::searchUI.isInitialized) {
+                Log.d("MainActivity", "searchUI is initialized, showing UI")
+                searchUI.showSearchUI()
+            } else {
+                Log.e("MainActivity", "SearchUI not initialized, trying to initialize now")
+                if (::navigationManager.isInitialized) {
+                    initializeSearchComponents()
+                    if (::searchUI.isInitialized) {
+                        searchUI.showSearchUI()
+                    } else {
+                        Log.e("MainActivity", "Still could not initialize SearchUI")
+                    }
+                } else {
+                    Log.e("MainActivity", "NavigationManager not initialized yet")
+                }
+            }
+        }
+    }
+
+    private fun initializeSearchComponents() {
+        try {
+            // 검색 매니저 초기화
+            searchManager = SearchManager(
+                this,
+                navigationManager.getRouteManager(),  // NavigationManager에서 RouteManager 가져옴
+                languageManager
+            )
+
+            // 검색 UI 초기화
+            searchUI = SearchUI(
+                this,
+                searchManager,
+                languageManager,
+                navigationManager.getMarkerManager()  // NavigationManager에서 MarkerManager 가져옴
+            )
+
+            Log.d("MainActivity", "Search components initialized")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Search components initialization error", e)
+        }
+    }
+
+    fun setSearchButtonEnabled(enabled: Boolean) {
+        if (::searchFab.isInitialized) {
+            searchFab.isEnabled = enabled
+            // 시각적으로 버튼 상태 표시
+            searchFab.alpha = if (enabled) 1.0f else 0.5f
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 화면이 포그라운드로 돌아올 때마다 네트워크 상태 확인
+        if (::navigationManager.isInitialized) {
+            navigationManager.checkNetworkStatus()
+        }
     }
 
     private fun setupMapboxNavigation() {
@@ -213,7 +293,12 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         Log.d("MainActivity", "onDestroy called")
 
-        // 각 매니저의 정리 메소드 호출
+        // 검색 매니저 정리
+        if (::searchManager.isInitialized) {
+            searchManager.cleanup()
+        }
+
+        // 기존 매니저 정리
         if (::navigationManager.isInitialized) {
             navigationManager.cleanup()
         }
