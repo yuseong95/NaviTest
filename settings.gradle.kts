@@ -36,3 +36,4 @@ dependencyResolutionManagement {
 rootProject.name = "NaviTest"
 include(":app")
 include(":whisper")
+include(":ChatApp")

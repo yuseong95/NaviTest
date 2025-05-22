@@ -1,0 +1,33 @@
+-- Merging decision tree log ---
+manifest
+ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:2:1-17:12
+INJECTED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:2:1-17:12
+	package
+		ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:3:5-34
+		INJECTED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml
+	xmlns:android
+		ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:2:11-69
+application
+ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:5:5-15:19
+activity#com.quicinc.chatapp.Conversation
+ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:7:9-10:77
+	android:parentActivityName
+		ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:10:13-74
+	android:exported
+		ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:9:13-37
+	android:name
+		ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:8:13-60
+activity#com.quicinc.chatapp.MainActivity
+ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:12:9-14:40
+	android:exported
+		ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:14:13-37
+	android:name
+		ADDED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:13:13-60
+uses-sdk
+INJECTED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml
+INJECTED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml

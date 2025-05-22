@@ -1,0 +1,27 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.quicinc.chatapp" >
+4
+5    <uses-sdk android:minSdkVersion="31" />
+6
+7    <application>
+7-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:5:5-15:19
+8
+9        <!-- 액티비티는 반드시 application 내부에 있어야 합니다 -->
+10        <activity
+10-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:7:9-10:77
+11            android:name="com.quicinc.chatapp.Conversation"
+11-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:8:13-60
+12            android:exported="false"
+12-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:9:13-37
+13            android:parentActivityName="com.quicinc.chatapp.MainActivity" />
+13-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:10:13-74
+14        <activity
+14-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:12:9-14:40
+15            android:name="com.quicinc.chatapp.MainActivity"
+15-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:13:13-60
+16            android:exported="false" />
+16-->C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\src\main\AndroidManifest.xml:14:13-37
+17    </application>
+18
+19</manifest>

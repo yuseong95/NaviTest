@@ -41,7 +41,7 @@ android {
 dependencies {
     //whisper
     implementation(project(":whisper"))
-
+    implementation(project(":ChatApp"))
     // Mapbox Navigation SDK
     implementation("com.mapbox.navigationcore:android:3.9.0-rc.1")  // Adds core Navigation SDK functionality
     implementation("com.mapbox.navigationcore:copilot:3.9.0-rc.1")

@@ -1,32 +1,38 @@
 package com.capstone.navitest
 
+// UI 컴포넌트 import
+
+// 프로젝트 내부 클래스들
+
+// Mapbox 관련
+
+//whisper
+
+//lama
+
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.lifecycle.lifecycleScope
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-
-// UI 컴포넌트 import
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-
-// 프로젝트 내부 클래스들
+import androidx.lifecycle.lifecycleScope
 import com.capstone.navitest.map.MapInitializer
 import com.capstone.navitest.map.OfflineTileManager
 import com.capstone.navitest.navigation.NavigationManager
+import com.capstone.navitest.search.SearchButtonViewModel
 import com.capstone.navitest.search.SearchManager
 import com.capstone.navitest.search.SearchUI
-import com.capstone.navitest.search.SearchButtonViewModel
 import com.capstone.navitest.ui.LanguageManager
 import com.capstone.navitest.ui.NavigationUI
 import com.capstone.navitest.utils.PermissionHelper
-
-// Mapbox 관련
+import com.example.capstone_whisper.WhisperService
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mapbox.common.MapboxOptions
 import com.mapbox.common.TileStore
 import com.mapbox.geojson.Point
@@ -37,14 +43,14 @@ import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
-
-//whisper
-import androidx.core.content.ContextCompat
-import android.content.pm.PackageManager
-import androidx.activity.result.contract.ActivityResultContracts
-import com.example.capstone_whisper.WhisperService
-
+import com.quicinc.chatapp.GenieWrapper
+import com.quicinc.chatapp.ModelInitializer
+import com.quicinc.chatapp.StringCallback
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
+
 
 class MainActivity : ComponentActivity() {
     // 필요한 매니저 클래스들을 선언
@@ -67,6 +73,10 @@ class MainActivity : ComponentActivity() {
 
     lateinit var searchButtonViewModel: SearchButtonViewModel
 
+    // config path 설정
+    private lateinit var configPath : String
+    private lateinit var modelDir : String
+    private lateinit var genieWrapper: GenieWrapper
     // MapboxNavigation delegate - 프로퍼티명 제거하여 "never used" 해결
     private val mapboxNavigation by requireMapboxNavigation(
         onResumedObserver = object : MapboxNavigationObserver {
@@ -152,6 +162,20 @@ class MainActivity : ComponentActivity() {
 
         // WhisperService 초기화 및 마이크 권한 요청
         setupWhisperService()
+
+
+        // 모델 초기화 (정상 작동 버전) 라마 경로 찾기.
+        try {
+            configPath = ModelInitializer.initialize(this)
+            Log.d("success","경로 초기화 성공")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "모델 초기화 실패: ${e.message}")
+        }
+        modelDir = getExternalCacheDir()?.let {
+            File(it, "models/llama3_2_3b").absolutePath
+        } ?: throw IOException("External cache dir not found")
+        genieWrapper = GenieWrapper(modelDir,configPath)
+
     }
 
     /*whisper-------------*/
@@ -183,6 +207,19 @@ class MainActivity : ComponentActivity() {
                 // 텍스트 토스트로 보여주는 부분
                 Toast.makeText(this, "📝 인식 결과: $result", Toast.LENGTH_LONG).show()
                 Log.d("WhisperResult", result)
+
+                if (::genieWrapper.isInitialized) {
+                    genieWrapper.getResponseForPrompt(result, object : StringCallback {
+                        override fun onNewString(response: String) {
+                            runOnUiThread {
+                                Log.d("LLaMA", "🦙 응답: $response")
+                                Toast.makeText(this@MainActivity, "🦙 응답: $response", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    })
+                } else {
+                    Log.e("GenieWrapper", "❌ GenieWrapper not initialized!")
+                }
             }
         }
         whisperService?.start()
