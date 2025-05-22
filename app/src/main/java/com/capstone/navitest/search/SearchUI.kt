@@ -15,7 +15,6 @@ import com.capstone.navitest.MainActivity
 import com.capstone.navitest.R
 import com.capstone.navitest.map.MarkerManager
 import com.capstone.navitest.ui.LanguageManager
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mapbox.geojson.Point
 import com.mapbox.search.ResponseInfo
 import com.mapbox.search.offline.OfflineResponseInfo
@@ -68,7 +67,7 @@ class SearchUI(
             offlineSearchEngine = OfflineSearchEngine.create(OfflineSearchEngineSettings())
         )
 
-        // 리스너 객체 생성
+        // 리스너 객체 생성 - 익명 객체로 구현
         val searchListener = object : SearchEngineUiAdapter.SearchListener {
             override fun onSuggestionsShown(suggestions: List<SearchSuggestion>, responseInfo: ResponseInfo) {
                 Log.d("SearchUI", "Suggestions shown: ${suggestions.size}")
@@ -94,6 +93,9 @@ class SearchUI(
                 searchManager.setDestinationFromPoint(point)
                 markerManager.addMarker(point)
 
+                // ViewModel에 목적지 설정 상태 알림
+                viewModel.setHasDestination(true)
+
                 // 목적지 설정 메시지
                 Toast.makeText(
                     activity,
@@ -104,8 +106,8 @@ class SearchUI(
                     Toast.LENGTH_SHORT
                 ).show()
 
-                // 검색 UI 숨기기
-                hideSearchUI()
+                // 검색 UI 숨기기 - ViewModel을 통해
+                viewModel.closeSearchUI()
             }
 
             override fun onError(e: Exception) {
@@ -121,15 +123,11 @@ class SearchUI(
                 ).show()
             }
 
-            // 피드백 메소드 추가 - ResponseInfo 버전
             override fun onFeedbackItemClick(responseInfo: ResponseInfo) {
-                // 필요 없다면 빈 구현만 제공
                 Log.d("SearchUI", "Feedback item clicked")
             }
 
-            // 추가 메서드들 구현
             override fun onHistoryItemClick(historyRecord: HistoryRecord) {
-                // 사용하지 않음 - 검색 기록 기능 비활성화
                 Log.d("SearchUI", "History item clicked (not used)")
             }
 
@@ -137,7 +135,6 @@ class SearchUI(
                 searchResult: OfflineSearchResult,
                 responseInfo: OfflineResponseInfo
             ) {
-                // 사용하지 않음 - 오프라인 검색 기능 비활성화
                 Log.d("SearchUI", "Offline search result selected (not used)")
             }
 
@@ -145,7 +142,6 @@ class SearchUI(
                 results: List<OfflineSearchResult>,
                 responseInfo: OfflineResponseInfo
             ) {
-                // 사용하지 않음 - 오프라인 검색 기능 비활성화
                 Log.d("SearchUI", "Offline search results shown (not used)")
             }
 
@@ -153,7 +149,6 @@ class SearchUI(
                 suggestion: SearchSuggestion,
                 responseInfo: ResponseInfo
             ) {
-                // 쿼리 자동완성 기능 - 필요시 구현
                 Log.d("SearchUI", "Populate query clicked: ${suggestion.name}")
             }
         }
@@ -161,6 +156,11 @@ class SearchUI(
         // 리스너 등록
         searchEngineUiAdapter.addSearchListener(searchListener)
 
+        // 나머지 UI 설정
+        setupUIComponents()
+    }
+
+    private fun setupUIComponents() {
         // 검색 버튼 클릭 리스너
         searchButton.setOnClickListener {
             val query = searchBar.text.toString().trim()
@@ -184,15 +184,18 @@ class SearchUI(
 
         // 뒤로가기 버튼 리스너
         backButton.setOnClickListener {
-            hideSearchUI()
+            Log.d("SearchUI", "Back button clicked")
+            viewModel.closeSearchUI()
         }
 
         // 초기 상태는 검색 UI 숨김
-        hideSearchUI()
+        searchContainer.visibility = View.GONE
     }
 
     // 메소드 수정
     fun showSearchUI() {
+        Log.d("SearchUI", "Showing search UI")
+
         // 네트워크 연결 확인
         if (!isNetworkAvailable()) {
             Toast.makeText(
@@ -203,6 +206,8 @@ class SearchUI(
                 ),
                 Toast.LENGTH_LONG
             ).show()
+            // 실패시 ViewModel 상태도 원복
+            viewModel.closeSearchUI()
             return
         }
 
@@ -212,11 +217,11 @@ class SearchUI(
     }
 
     fun hideSearchUI() {
+        Log.d("SearchUI", "Hiding search UI")
         searchContainer.visibility = View.GONE
         hideKeyboard()
         searchBar.text.clear()
     }
-
 
     private fun setupSearchButton() {
         searchButton.setOnClickListener {

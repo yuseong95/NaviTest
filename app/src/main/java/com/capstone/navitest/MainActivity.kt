@@ -7,15 +7,26 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.ViewModelProvider
+import kotlinx.coroutines.flow.collect // Flow.collect()를 위해 필요
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+// UI 컴포넌트 import
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+
+// 프로젝트 내부 클래스들
 import com.capstone.navitest.map.MapInitializer
 import com.capstone.navitest.map.OfflineTileManager
 import com.capstone.navitest.navigation.NavigationManager
 import com.capstone.navitest.search.SearchManager
 import com.capstone.navitest.search.SearchUI
+import com.capstone.navitest.search.SearchButtonViewModel
 import com.capstone.navitest.ui.LanguageManager
 import com.capstone.navitest.ui.NavigationUI
 import com.capstone.navitest.utils.PermissionHelper
-import com.google.android.material.floatingactionbutton.FloatingActionButton
+
+// Mapbox 관련
 import com.mapbox.common.MapboxOptions
 import com.mapbox.common.TileStore
 import com.mapbox.geojson.Point
@@ -26,12 +37,8 @@ import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
+
 import java.io.File
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import com.capstone.navitest.search.SearchButtonViewModel
 
 class MainActivity : ComponentActivity() {
     // 필요한 매니저 클래스들을 선언
@@ -49,7 +56,7 @@ class MainActivity : ComponentActivity() {
     // 검색 버튼 참조
     private lateinit var searchFab: FloatingActionButton
 
-    private lateinit var searchButtonViewModel: SearchButtonViewModel
+    lateinit var searchButtonViewModel: SearchButtonViewModel
 
     // MapboxNavigation 정의
     private val mapboxNavigation by requireMapboxNavigation(
@@ -136,35 +143,40 @@ class MainActivity : ComponentActivity() {
 
     private fun observeViewModelState() {
         lifecycleScope.launch {
-            // 검색 버튼 가시성 상태 관찰
-            searchButtonViewModel.isVisible.collectLatest { isVisible ->
+            // 검색 버튼 가시성 상태 관찰 - Flow<Boolean>으로 변경됨
+            searchButtonViewModel.isSearchButtonVisible.collect { isVisible ->
+                Log.d("MainActivity", "Search button visibility changed: $isVisible")
                 searchFab.visibility = if (isVisible) View.VISIBLE else View.GONE
             }
         }
 
         lifecycleScope.launch {
-            // 검색 UI 가시성 상태 관찰
+            // 검색 UI 가시성 상태 관찰 - StateFlow이므로 collectLatest 사용 가능
             searchButtonViewModel.isSearchUIVisible.collectLatest { isVisible ->
-                // searchContainer는 SearchUI 클래스에서 관리하도록 수정
+                Log.d("MainActivity", "Search UI visibility changed: $isVisible")
                 if (::searchUI.isInitialized) {
-                    if (isVisible) searchUI.showSearchUI() else searchUI.hideSearchUI()
+                    if (isVisible) {
+                        searchUI.showSearchUI()
+                    } else {
+                        searchUI.hideSearchUI()
+                    }
                 }
             }
         }
     }
 
     private fun initializeSearchButton() {
-        searchFab = findViewById(R.id.searchFab)
+        searchFab = findViewById<FloatingActionButton>(R.id.searchFab) // 명시적 타입 지정
         searchFab.setOnClickListener {
+            Log.d("MainActivity", "Search FAB clicked")
             if (::searchUI.isInitialized) {
-                Log.d("MainActivity", "searchUI is initialized, showing UI")
-                searchUI.showSearchUI()
+                searchButtonViewModel.openSearchUI()
             } else {
                 Log.e("MainActivity", "SearchUI not initialized, trying to initialize now")
                 if (::navigationManager.isInitialized) {
                     initializeSearchComponents()
                     if (::searchUI.isInitialized) {
-                        searchUI.showSearchUI()
+                        searchButtonViewModel.openSearchUI()
                     } else {
                         Log.e("MainActivity", "Still could not initialize SearchUI")
                     }
@@ -192,11 +204,6 @@ class MainActivity : ComponentActivity() {
                 navigationManager.getMarkerManager(),
                 searchButtonViewModel  // ViewModel 전달
             )
-
-            // 검색 버튼 클릭 이벤트 수정
-            searchFab.setOnClickListener {
-                searchButtonViewModel.openSearchUI()  // ViewModel 메소드 호출
-            }
 
             Log.d("MainActivity", "Search components initialized")
         } catch (e: Exception) {

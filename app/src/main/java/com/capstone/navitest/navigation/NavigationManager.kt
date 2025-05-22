@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import com.capstone.navitest.search.SearchButtonViewModel
 
 
 class NavigationManager(
@@ -66,6 +67,10 @@ class NavigationManager(
     private val languageManager: LanguageManager,
     private val navigationUI: NavigationUI
 ) : RouteManager.OnRouteChangeListener, LocationManager.OnLocationChangeListener {
+
+    // ViewModel 참조 추가
+    private val searchButtonViewModel: SearchButtonViewModel?
+        get() = (context as? MainActivity)?.searchButtonViewModel
 
     private val navigationLocationProvider = NavigationLocationProvider()
 
@@ -356,7 +361,6 @@ class NavigationManager(
     }
 
     // 네비게이션 시작
-// 네비게이션 시작
     fun startNavigation() {
         if (::routeManager.isInitialized && routeManager.hasValidRoute()) {
             Log.d("NavigationManager", "Starting navigation")
@@ -364,15 +368,15 @@ class NavigationManager(
             isNavigating = true
 
             // 운전 시점으로 카메라 줌/피치 오버라이드
-            viewportDataSource.followingZoomPropertyOverride(20.0) // 운전 시 가까운 줌
-            viewportDataSource.followingPitchPropertyOverride(45.0) // 3D 시점
+            viewportDataSource.followingZoomPropertyOverride(20.0)
+            viewportDataSource.followingPitchPropertyOverride(45.0)
             viewportDataSource.evaluate()
 
             // UI 업데이트
             navigationUI.updateUIForNavigationStart()
 
-            // 내비게이션 상태 업데이트 (기존 코드 대체)
-            (context as? MainActivity)?.setNavigationActive(true)
+            // ViewModel 상태 업데이트
+            searchButtonViewModel?.setNavigationActive(true)
 
             // 경로 재요청
             routeManager.requestRoute()
@@ -394,8 +398,9 @@ class NavigationManager(
         // UI 업데이트
         navigationUI.updateUIForNavigationCancel()
 
-        // 내비게이션 상태 업데이트 (기존 코드 대체)
-        (context as? MainActivity)?.setNavigationActive(false)
+        // ViewModel 상태 업데이트 - 목적지와 내비게이션 모두 리셋
+        searchButtonViewModel?.setNavigationActive(false)
+        searchButtonViewModel?.setHasDestination(false)
 
         // 경로 라인 명시적으로 지우기
         if (::routeLineApi.isInitialized) {
@@ -481,6 +486,9 @@ class NavigationManager(
                 markerManager.addMarker(point)
                 routeManager.setDestination(point)
                 navigationUI.setStartButtonEnabled(true)
+
+                // ViewModel에 목적지 설정 상태 알림
+                searchButtonViewModel?.setHasDestination(true)
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error setting destination", e)
@@ -569,8 +577,7 @@ class NavigationManager(
         })
     }
 
-
-        // 정리 메소드
+    // 정리 메소드
     fun cleanup() {
         try {
             Log.d("NavigationManager", "Cleaning up navigation resources")
