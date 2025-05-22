@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 기존 App 테마들… -->
+    <!-- 네비앱 기본 테마 (AppCompat 계열) -->
+    <style name="Theme.NaviTest2" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- 필요하다면 색상, 폰트 등 커스터마이징 -->
+        <item name="colorPrimary">@color/mapbox_notification_blue</item>
+        <item name="colorOnPrimary">@color/white</item>
+    </style>
+    <!-- 스플래시 전용 테마 -->
+    <style name="Theme.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- 스플래시 화면 배경 (컬러 또는 드로어블) -->
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <!-- 액션바나 툴바 없이 전체 화면 -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

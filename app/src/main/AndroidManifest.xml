@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
+        android:largeHeap="true"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -18,19 +19,51 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.NaviTest"
-        tools:targetApi="31">
+        android:theme="@style/Theme.NaviTest">
+        <!-- 1) SplashActivity: LAUNCHER -->
+      <!--  <activity
+            android:name="com.capstone.navitest.MainActivityid"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>-->
+         <activity
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
         <activity
+            android:name=".MainMenuActivity"
+            android:exported="true"
+            android:theme="@style/Theme.NaviTest" />  <!-- ← AppCompat 계열 테마 -->
+        <activity
+            android:name=".MainActivityid"
+            android:exported="true"
+            android:theme="@style/Theme.NaviTest2" />  <!-- ← AppCompat 계열 테마 -->
+        <activity
+            android:name=".Conversation"
+            android:exported="true"
+            android:theme="@style/Theme.NaviTest" />  <!-- ← AppCompat 계열 테마 -->
+        <activity
+
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.NaviTest">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
+        <uses-native-library
+            android:name="libadsprpc.so"
+            android:required="false" />
+        <uses-native-library
+            android:name="libcdsprpc.so"
+            android:required="false" />
     </application>
 
 </manifest>

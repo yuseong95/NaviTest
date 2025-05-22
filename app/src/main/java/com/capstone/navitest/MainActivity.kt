@@ -65,6 +65,9 @@ import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
 import java.io.File
 
+import android.content.Intent
+
+
 class MainActivity : ComponentActivity() {
     private lateinit var mapView: MapView
     private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
@@ -116,7 +119,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val am = assets
 
+// 루트
+        Log.i("AssetCheck", "root: ${am.list("")?.joinToString()}")
+// models 폴더
+        Log.i("AssetCheck", "models: ${am.list("models")?.joinToString()}")
+// models/llama3_2_3b 폴더 (만약 폴더형태라면)
+        Log.i("AssetCheck", "models/llama3_2_3b: ${am.list("models/llama3_2_3b")?.joinToString()}")
         // Create a root view
         val rootLayout = FrameLayout(this)
         setContentView(rootLayout)
@@ -165,6 +175,7 @@ class MainActivity : ComponentActivity() {
 
     private fun setupUIComponents(rootLayout: FrameLayout) {
         // Create button layout
+
         buttonLayout = LinearLayout(this).apply {
             id = View.generateViewId()
             orientation = LinearLayout.VERTICAL
@@ -195,7 +206,17 @@ class MainActivity : ComponentActivity() {
                 cancelNavigation()
             }
         }
-
+        // ③ 채팅 화면 열기 버튼
+        val chatButton = Button(this).apply {
+            text = "Open Chat"
+            setOnClickListener {
+                // ChatApp 모듈의 ChatActivity 패키지 경로로 바꿔주세요
+                val intent = Intent(this@MainActivity,
+                   MainActivityid::class.java)
+                startActivity(intent)
+            }
+        }
+        buttonLayout.addView(chatButton)
         // Add buttons to layout
         buttonLayout.addView(startNavigationButton)
         buttonLayout.addView(cancelButton)
