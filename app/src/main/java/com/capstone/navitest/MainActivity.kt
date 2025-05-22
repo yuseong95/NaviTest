@@ -1,5 +1,6 @@
 package com.capstone.navitest
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
@@ -37,6 +38,12 @@ import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 
+//whisper
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.capstone_whisper.WhisperService
+
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -54,6 +61,9 @@ class MainActivity : ComponentActivity() {
 
     // 검색 버튼 참조
     private lateinit var searchFab: FloatingActionButton
+
+    //whisperService 생성
+    private var whisperService: WhisperService? = null
 
     lateinit var searchButtonViewModel: SearchButtonViewModel
 
@@ -139,7 +149,45 @@ class MainActivity : ComponentActivity() {
         if (::navigationManager.isInitialized) {
             initializeSearchComponents()
         }
+
+        // WhisperService 초기화 및 마이크 권한 요청
+        setupWhisperService()
     }
+
+    /*whisper-------------*/
+    private fun setupWhisperService() {
+        val launcher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            if (isGranted) {
+                startWhisperService()
+            } else {
+                Toast.makeText(this, "🎤 마이크 권한이 필요합니다.", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            startWhisperService()
+        } else {
+            launcher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private fun startWhisperService() {
+        whisperService = WhisperService(this) { result ->
+            runOnUiThread {
+                // 텍스트 토스트로 보여주는 부분
+                Toast.makeText(this, "📝 인식 결과: $result", Toast.LENGTH_LONG).show()
+                Log.d("WhisperResult", result)
+            }
+        }
+        whisperService?.start()
+    }
+/*------------------------------------*/
 
     private fun observeViewModelState() {
         lifecycleScope.launch {
@@ -349,6 +397,9 @@ class MainActivity : ComponentActivity() {
         if (::navigationManager.isInitialized) {
             navigationManager.cleanup()
         }
+
+        //whisperService 종료
+        whisperService?.stop()
 
         MapboxNavigationApp.disable()
         super.onDestroy()

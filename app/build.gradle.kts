@@ -39,6 +39,8 @@ android {
 }
 
 dependencies {
+    //whisper
+    implementation(project(":whisper"))
 
     // Mapbox Navigation SDK
     implementation("com.mapbox.navigationcore:android:3.9.0-rc.1")  // Adds core Navigation SDK functionality
