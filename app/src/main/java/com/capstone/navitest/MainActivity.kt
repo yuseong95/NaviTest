@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
 
     lateinit var searchButtonViewModel: SearchButtonViewModel
 
-    // MapboxNavigation delegate - 프로퍼티명 제거하여 "never used" 해결
+    // MapboxNavigation delegate
     private val mapboxNavigation by requireMapboxNavigation(
         onResumedObserver = object : MapboxNavigationObserver {
             @SuppressLint("MissingPermission")
@@ -221,11 +221,6 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         }
     }
-
-    // isNavigationActive() 함수 제거 - 사용되지 않음
-    // fun isNavigationActive(): Boolean {
-    //     return searchButtonViewModel.navigationActive.value
-    // }
 
     fun setNavigationActive(active: Boolean) {
         searchButtonViewModel.setNavigationActive(active)
