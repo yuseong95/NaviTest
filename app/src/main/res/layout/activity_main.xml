@@ -49,7 +49,7 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:background="@android:color/transparent"
-                android:hint="목적지 검색"
+                android:hint="랜드마크/주소 검색 (예: 서울시청, 강남역)"
                 android:imeOptions="actionSearch"
                 android:inputType="text"
                 android:paddingStart="8dp"
@@ -68,11 +68,12 @@
             android:layout_height="1dp"
             android:background="#E0E0E0" />
 
-        <!-- RecyclerView에서 SearchResultsView로 변경 -->
-        <com.mapbox.search.ui.view.SearchResultsView
+        <!-- ✅ 중요: SearchResultsView가 아닌 RecyclerView 사용 -->
+        <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/searchResultsView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:padding="8dp" />
     </LinearLayout>
 
     <com.mapbox.navigation.ui.components.maneuver.view.MapboxManeuverView
