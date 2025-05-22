@@ -10,7 +10,6 @@ import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 
 class LocationManager(
-    private val context: Context,
     private val mapView: MapView
 ) {
     private val navigationLocationProvider = NavigationLocationProvider()

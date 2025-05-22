@@ -20,7 +20,6 @@ class SearchButtonViewModel : ViewModel() {
     val navigationActive: StateFlow<Boolean> = _navigationActive.asStateFlow()
 
     private val _hasDestination = MutableStateFlow(false)
-    val hasDestination: StateFlow<Boolean> = _hasDestination.asStateFlow()
 
     // 검색 버튼 가시성은 다른 상태들을 조합하여 계산 - Flow<Boolean>로 선언
     val isSearchButtonVisible: Flow<Boolean> = combine(

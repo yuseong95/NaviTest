@@ -63,7 +63,6 @@ class NavigationManager(
     private val lifecycleScope: LifecycleCoroutineScope,
     private val mapView: MapView,
     private val mapInitializer: MapInitializer,
-    private val tileStore: TileStore,
     private val languageManager: LanguageManager,
     private val navigationUI: NavigationUI
 ) : RouteManager.OnRouteChangeListener, LocationManager.OnLocationChangeListener {
@@ -72,7 +71,6 @@ class NavigationManager(
     private val searchButtonViewModel: SearchButtonViewModel?
         get() = (context as? MainActivity)?.searchButtonViewModel
 
-    private val navigationLocationProvider = NavigationLocationProvider()
 
     // 네비게이션 관련 변수들
     private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
@@ -103,7 +101,7 @@ class NavigationManager(
             Log.d("NavigationManager", "Initializing navigation components")
 
             // 위치 관리자 초기화
-            locationManager = LocationManager(context, mapView)
+            locationManager = LocationManager(mapView)
 
             // 네비게이션 컴포넌트 초기화
             initializeNavigationComponents()
@@ -193,7 +191,7 @@ class NavigationManager(
 
         // 위치 컴포넌트 초기화
         mapView.location.apply {
-            setLocationProvider(navigationLocationProvider)
+            setLocationProvider(locationManager.getNavigationLocationProvider())
             locationPuck = createDefault2DPuck()
             enabled = true
         }
@@ -322,7 +320,7 @@ class NavigationManager(
             locationManager.updateCurrentLocation(currentLocation)
 
             // 네비게이션 위치 제공자 업데이트
-            navigationLocationProvider.changePosition(
+            locationManager.getNavigationLocationProvider().changePosition(
                 location = enhancedLocation,
                 keyPoints = locationMatcherResult.keyPoints,
             )

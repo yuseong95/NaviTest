@@ -2,7 +2,6 @@ package com.capstone.navitest.ui
 
 import android.view.View
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Toast
@@ -26,7 +25,6 @@ class NavigationUI(
     private lateinit var navigationManager: NavigationManager
 
     // UI 컴포넌트
-    private val buttonLayout: LinearLayout = activity.findViewById(R.id.buttonLayout)
     private val startNavigationButton: Button = activity.findViewById(R.id.startNavigationButton)
     private val cancelButton: Button = activity.findViewById(R.id.cancelButton)
     private val recenterButton: Button = activity.findViewById(R.id.recenterButton)
@@ -124,8 +122,7 @@ class NavigationUI(
         maneuverView.visibility = View.VISIBLE
         tripProgressView.visibility = View.VISIBLE
 
-        // 내비게이션 활성화 설정 (MainActivity에서 처리)
-        (activity as MainActivity).setNavigationActive(true)
+        activity.setNavigationActive(true)
     }
 
     fun updateUIForNavigationCancel() {
@@ -136,8 +133,8 @@ class NavigationUI(
         tripProgressView.visibility = View.GONE
         startNavigationButton.isEnabled = false
 
-        // 내비게이션 비활성화 설정 (MainActivity에서 처리)
-        (activity as MainActivity).setNavigationActive(false)
+        // 캐스팅 제거 - activity는 이미 MainActivity 타입
+        activity.setNavigationActive(false)
     }
 
     fun showLanguageChangedToast() {

@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
-import kotlinx.coroutines.flow.collect // Flow.collect()를 위해 필요
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -58,7 +57,7 @@ class MainActivity : ComponentActivity() {
 
     lateinit var searchButtonViewModel: SearchButtonViewModel
 
-    // MapboxNavigation 정의
+    // MapboxNavigation delegate - 프로퍼티명 제거하여 "never used" 해결
     private val mapboxNavigation by requireMapboxNavigation(
         onResumedObserver = object : MapboxNavigationObserver {
             @SuppressLint("MissingPermission")
@@ -67,13 +66,13 @@ class MainActivity : ComponentActivity() {
 
                 if (!::navigationManager.isInitialized) {
                     try {
-                        // NavigationManager 초기화
+                        // NavigationManager 초기화 - 매개변수 수정
                         navigationManager = NavigationManager(
                             this@MainActivity,
                             lifecycleScope,
                             mapInitializer.getMapView(),
                             mapInitializer,
-                            mapInitializer.getTileStore(),
+                            // tileStore 매개변수 제거됨
                             languageManager,
                             navigationUI
                         )
@@ -84,7 +83,7 @@ class MainActivity : ComponentActivity() {
                         // 지도 클릭 리스너 설정
                         initializeMapClickListener()
 
-                        // 검색 관련 초기화 - 이 시점에서 RouteManager 사용 가능
+                        // 검색 관련 초기화
                         initializeSearchComponents()
                     } catch (e: Exception) {
                         Log.e("MainActivity", "NavigationManager 초기화 오류", e)
@@ -93,6 +92,7 @@ class MainActivity : ComponentActivity() {
 
                 // MapboxNavigation 인스턴스를 NavigationManager에 전달
                 navigationManager.onNavigationAttached(mapboxNavigation)
+                navigationManager.startNetworkMonitoring()
             }
 
             override fun onDetached(mapboxNavigation: MapboxNavigation) {
@@ -143,15 +143,15 @@ class MainActivity : ComponentActivity() {
 
     private fun observeViewModelState() {
         lifecycleScope.launch {
-            // 검색 버튼 가시성 상태 관찰 - Flow<Boolean>으로 변경됨
-            searchButtonViewModel.isSearchButtonVisible.collect { isVisible ->
+            // 검색 버튼 가시성 상태 관찰
+            searchButtonViewModel.isSearchButtonVisible.collectLatest { isVisible ->
                 Log.d("MainActivity", "Search button visibility changed: $isVisible")
                 searchFab.visibility = if (isVisible) View.VISIBLE else View.GONE
             }
         }
 
         lifecycleScope.launch {
-            // 검색 UI 가시성 상태 관찰 - StateFlow이므로 collectLatest 사용 가능
+            // 검색 UI 가시성 상태 관찰
             searchButtonViewModel.isSearchUIVisible.collectLatest { isVisible ->
                 Log.d("MainActivity", "Search UI visibility changed: $isVisible")
                 if (::searchUI.isInitialized) {
@@ -166,7 +166,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun initializeSearchButton() {
-        searchFab = findViewById<FloatingActionButton>(R.id.searchFab) // 명시적 타입 지정
         searchFab.setOnClickListener {
             Log.d("MainActivity", "Search FAB clicked")
             if (::searchUI.isInitialized) {
@@ -189,20 +188,15 @@ class MainActivity : ComponentActivity() {
 
     private fun initializeSearchComponents() {
         try {
-            // 검색 매니저 초기화
-            searchManager = SearchManager(
-                this,
-                navigationManager.getRouteManager(),
-                languageManager
-            )
+            // SearchManager 초기화 - 매개변수 수정
+            searchManager = SearchManager(this)
 
-            // 검색 UI 초기화 - ViewModel 전달
+            // SearchUI 초기화 - 매개변수 수정
             searchUI = SearchUI(
                 this,
                 searchManager,
                 languageManager,
-                navigationManager.getMarkerManager(),
-                searchButtonViewModel  // ViewModel 전달
+                searchButtonViewModel
             )
 
             Log.d("MainActivity", "Search components initialized")
@@ -215,13 +209,11 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "Setting destination from search: ${point.longitude()}, ${point.latitude()}")
 
         if (::navigationManager.isInitialized) {
-            // NavigationManager의 setDestination 메서드를 통해 목적지 설정
             navigationManager.setDestination(point)
             Log.d("MainActivity", "Destination set through NavigationManager")
         } else {
             Log.e("MainActivity", "NavigationManager not initialized, cannot set destination")
 
-            // 사용자에게 알림
             val message = languageManager.getLocalizedString(
                 "내비게이션이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.",
                 "Navigation is not ready yet. Please try again in a moment."
@@ -230,17 +222,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // 내비게이션 상태 확인 메소드 추가
-    fun isNavigationActive(): Boolean {
-        return searchButtonViewModel.navigationActive.value
-    }
+    // isNavigationActive() 함수 제거 - 사용되지 않음
+    // fun isNavigationActive(): Boolean {
+    //     return searchButtonViewModel.navigationActive.value
+    // }
 
-    // 메소드 수정: 네비게이션 상태 설정
     fun setNavigationActive(active: Boolean) {
         searchButtonViewModel.setNavigationActive(active)
     }
 
-    // 기존 메소드 수정: 검색 버튼 활성화 상태 설정
     fun setSearchButtonEnabled(enabled: Boolean) {
         if (::searchFab.isInitialized) {
             searchFab.isEnabled = enabled
@@ -250,57 +240,41 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 화면이 포그라운드로 돌아올 때마다 네트워크 상태 확인
         if (::navigationManager.isInitialized) {
             navigationManager.checkNetworkStatus()
         }
     }
 
     private fun setupMapboxNavigation() {
-        // TileStore 초기화 (필요한 경우)
         val tilePath = File(filesDir, "mbx-offline").absolutePath
         val tileStore = TileStore.create(tilePath)
 
-        // RoutingTilesOptions 생성
         val routingTilesOptions = RoutingTilesOptions.Builder()
             .tileStore(tileStore)
             .build()
 
-        // NavigationOptions 생성
         val navOptions = NavigationOptions.Builder(this)
             .routingTilesOptions(routingTilesOptions)
             .navigatorPredictionMillis(3000)
             .build()
 
-        // MapboxNavigationApp 초기화
         MapboxNavigationApp.setup(navOptions)
-
         Log.d("MainActivity", "MapboxNavigationApp setup completed")
     }
 
     private fun initializeManagers() {
         Log.d("MainActivity", "Initializing basic managers")
 
-        // 먼저 언어와 권한 관리자 초기화
         languageManager = LanguageManager(this)
-
-        // 권한 관리자 초기화
         permissionHelper = PermissionHelper(this, languageManager)
-
-        // 맵 초기화
         mapInitializer = MapInitializer(this, languageManager)
-
-        // 오프라인 타일 관리자 초기화
         offlineTileManager = OfflineTileManager(
             this,
             mapInitializer.getTileStore(),
             languageManager
         )
-
-        // UI 관리자 초기화
         navigationUI = NavigationUI(this, languageManager)
 
-        // 권한 콜백 설정
         permissionHelper.setPermissionCallback(object : PermissionHelper.PermissionCallback {
             override fun onPermissionGranted() {
                 Log.d("MainActivity", "Location permissions granted")
@@ -320,11 +294,9 @@ class MainActivity : ComponentActivity() {
         try {
             Log.d("MainActivity", "Initializing after permission granted")
 
-            // 맵 초기화
             mapInitializer.initializeMap()
 
-            // 명시적인 카메라 위치 설정 추가
-            val seoulLocation = Point.fromLngLat(126.978, 37.566) // 서울 시청 좌표(임시로 사용)
+            val seoulLocation = Point.fromLngLat(126.978, 37.566)
             mapInitializer.getMapView().mapboxMap.setCamera(
                 CameraOptions.Builder()
                     .center(seoulLocation)
@@ -333,7 +305,6 @@ class MainActivity : ComponentActivity() {
             )
 
             Log.d("MainActivity", "Initial camera position set")
-
             Log.d("MainActivity", "Initialization after permission completed")
         } catch (e: Exception) {
             Log.e("MainActivity", "컴포넌트 초기화 오류", e)
@@ -371,19 +342,15 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         Log.d("MainActivity", "onDestroy called")
 
-        // 검색 매니저 정리
         if (::searchManager.isInitialized) {
             searchManager.cleanup()
         }
 
-        // 기존 매니저 정리
         if (::navigationManager.isInitialized) {
             navigationManager.cleanup()
         }
 
-        // MapboxNavigationApp 비활성화
         MapboxNavigationApp.disable()
-
         super.onDestroy()
     }
 }

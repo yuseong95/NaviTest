@@ -20,7 +20,7 @@ import com.mapbox.maps.plugin.gestures.gestures
 import java.io.File
 
 class MapInitializer(private val activity: MainActivity, private val languageManager: LanguageManager) {
-    private lateinit var mapView: MapView
+    private val mapView: MapView
     private lateinit var tileStore: TileStore
     lateinit var pointAnnotationManager: PointAnnotationManager
         private set
@@ -46,7 +46,7 @@ class MapInitializer(private val activity: MainActivity, private val languageMan
 
     fun initializeMap() {
         // 맵 스타일 적용
-        applyMapStyle(languageManager.currentLanguage)  // 언어 매개변수 추가
+        applyMapStyle(languageManager.currentLanguage)
 
         // 애노테이션 매니저 초기화
         pointAnnotationManager = mapView.annotations.createPointAnnotationManager()
@@ -71,11 +71,10 @@ class MapInitializer(private val activity: MainActivity, private val languageMan
                 )
 
                 // 각 레이어의 text-field 속성을 한국어 필드로 변경
+                // Redundant 'let' call 제거
                 labelLayers.forEach { layerId ->
-                    style.getLayerAs<com.mapbox.maps.extension.style.layers.generated.SymbolLayer>(layerId)?.let { layer ->
-                        // Set text field to Korean field
-                        layer.textField("{name_ko}")
-                    }
+                    val layer = style.getLayerAs<com.mapbox.maps.extension.style.layers.generated.SymbolLayer>(layerId)
+                    layer?.textField("{name_ko}")
                 }
             }
         }

@@ -11,9 +11,9 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.core.view.isVisible
 import com.capstone.navitest.MainActivity
 import com.capstone.navitest.R
-import com.capstone.navitest.map.MarkerManager
 import com.capstone.navitest.ui.LanguageManager
 import com.mapbox.geojson.Point
 import com.mapbox.search.ResponseInfo
@@ -33,7 +33,6 @@ class SearchUI(
     private val activity: MainActivity,
     private val searchManager: SearchManager,
     private val languageManager: LanguageManager,
-    private val markerManager: MarkerManager,
     private val viewModel: SearchButtonViewModel
 ) {
     // UI 컴포넌트
@@ -91,7 +90,8 @@ class SearchUI(
 
                 val point = Point.fromLngLat(coordinate.longitude(), coordinate.latitude())
 
-                (activity as MainActivity).setDestinationFromSearch(point)
+                // 캐스팅 제거 - MainActivity로 확실함
+                activity.setDestinationFromSearch(point)
 
                 // ViewModel에 목적지 설정 상태 알림
                 viewModel.setHasDestination(true)
@@ -161,7 +161,7 @@ class SearchUI(
     }
 
     private fun setupUIComponents() {
-        // 검색 버튼 클릭 리스너
+        // 검색 버튼 클릭 리스너 - 직접 여기서 설정 (setupSearchButton 제거)
         searchButton.setOnClickListener {
             val query = searchBar.text.toString().trim()
             if (query.isNotEmpty()) {
@@ -182,7 +182,7 @@ class SearchUI(
             }
         }
 
-        // 뒤로가기 버튼 리스너
+        // 뒤로가기 버튼 리스너 - 직접 여기서 설정 (setupBackButton 제거)
         backButton.setOnClickListener {
             Log.d("SearchUI", "Back button clicked")
             viewModel.closeSearchUI()
@@ -192,7 +192,6 @@ class SearchUI(
         searchContainer.visibility = View.GONE
     }
 
-    // 메소드 수정
     fun showSearchUI() {
         Log.d("SearchUI", "Showing search UI")
 
@@ -221,22 +220,6 @@ class SearchUI(
         searchContainer.visibility = View.GONE
         hideKeyboard()
         searchBar.text.clear()
-    }
-
-    private fun setupSearchButton() {
-        searchButton.setOnClickListener {
-            val query = searchBar.text.toString().trim()
-            if (query.isNotEmpty()) {
-                performSearch(query)
-            }
-        }
-    }
-
-    // 뒤로가기 버튼 처리 - ViewModel 사용
-    private fun setupBackButton() {
-        backButton.setOnClickListener {
-            viewModel.closeSearchUI()
-        }
     }
 
     private fun performSearch(query: String) {
@@ -277,10 +260,5 @@ class SearchUI(
         val imm = activity.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
         val view = activity.currentFocus ?: View(activity)
         imm.hideSoftInputFromWindow(view.windowToken, 0)
-    }
-
-    // 검색 UI가 현재 표시 중인지 확인하는 메소드
-    fun isSearchUIVisible(): Boolean {
-        return searchContainer.visibility == View.VISIBLE
     }
 }

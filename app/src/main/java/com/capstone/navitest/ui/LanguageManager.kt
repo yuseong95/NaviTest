@@ -2,9 +2,10 @@ package com.capstone.navitest.ui
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.capstone.navitest.utils.Constants
 
-class LanguageManager(private val context: Context) {
+class LanguageManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(
         Constants.PREFS_NAME,
         Context.MODE_PRIVATE
@@ -29,13 +30,14 @@ class LanguageManager(private val context: Context) {
 
         currentLanguage = newLanguage
 
-        // 설정 저장
-        prefs.edit().putString(Constants.PREF_LANG_KEY, currentLanguage).apply()
+        prefs.edit {
+            putString(Constants.PREF_LANG_KEY, currentLanguage)
+        }
 
         return true
     }
 
-    // 현재 언어에 맞는 문자열 반환 유틸리티 메소드들
+    // 현재 언어에 맞는 문자열 반환 유틸리티 메소드
     fun getLocalizedString(koreanText: String, englishText: String): String {
         return if (currentLanguage == Constants.LANG_KOREAN) koreanText else englishText
     }
