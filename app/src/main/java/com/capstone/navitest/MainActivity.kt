@@ -211,6 +211,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun setDestinationFromSearch(point: Point) {
+        Log.d("MainActivity", "Setting destination from search: ${point.longitude()}, ${point.latitude()}")
+
+        if (::navigationManager.isInitialized) {
+            // NavigationManager의 setDestination 메서드를 통해 목적지 설정
+            navigationManager.setDestination(point)
+            Log.d("MainActivity", "Destination set through NavigationManager")
+        } else {
+            Log.e("MainActivity", "NavigationManager not initialized, cannot set destination")
+
+            // 사용자에게 알림
+            val message = languageManager.getLocalizedString(
+                "내비게이션이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.",
+                "Navigation is not ready yet. Please try again in a moment."
+            )
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // 내비게이션 상태 확인 메소드 추가
     fun isNavigationActive(): Boolean {
         return searchButtonViewModel.navigationActive.value

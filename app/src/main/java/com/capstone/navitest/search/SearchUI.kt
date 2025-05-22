@@ -90,8 +90,8 @@ class SearchUI(
                 val resultName = searchResult.name
 
                 val point = Point.fromLngLat(coordinate.longitude(), coordinate.latitude())
-                searchManager.setDestinationFromPoint(point)
-                markerManager.addMarker(point)
+
+                (activity as MainActivity).setDestinationFromSearch(point)
 
                 // ViewModel에 목적지 설정 상태 알림
                 viewModel.setHasDestination(true)

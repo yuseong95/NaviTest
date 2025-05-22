@@ -458,9 +458,17 @@ class NavigationManager(
     // LocationManager.OnLocationChangeListener 구현
     override fun onLocationChanged(location: Point) {
         try {
+            Log.d("NavigationManager", "Location changed: ${location.longitude()}, ${location.latitude()}")
+
             // 현재 위치를 경로 관리자에 설정
             if (::routeManager.isInitialized) {
                 routeManager.setOrigin(location)
+
+                // 목적지가 이미 설정되어 있다면 시작 버튼 활성화
+                if (routeManager.getDestination() != null) {
+                    Log.d("NavigationManager", "Both origin and destination available, enabling start button")
+                    navigationUI.setStartButtonEnabled(true)
+                }
 
                 // 네비게이션 중이고 목적지가 설정된 경우 주기적으로 경로 업데이트
                 if (isNavigating && routeManager.getDestination() != null) {
@@ -480,15 +488,27 @@ class NavigationManager(
     // 목적지 설정 메서드
     fun setDestination(point: Point) {
         try {
-            Log.d("NavigationManager", "Setting destination")
+            Log.d("NavigationManager", "Setting destination: ${point.longitude()}, ${point.latitude()}")
 
             if (::markerManager.isInitialized && ::routeManager.isInitialized) {
+                // 기존 마커 및 경로 삭제
+                markerManager.clearMarkers()
+
+                // 새 마커 추가
                 markerManager.addMarker(point)
+
+                // 경로 관리자에 목적지 설정
                 routeManager.setDestination(point)
+
+                // UI 업데이트 - 시작 버튼 활성화
                 navigationUI.setStartButtonEnabled(true)
 
                 // ViewModel에 목적지 설정 상태 알림
                 searchButtonViewModel?.setHasDestination(true)
+
+                Log.d("NavigationManager", "Destination set successfully, start button enabled")
+            } else {
+                Log.e("NavigationManager", "MarkerManager or RouteManager not initialized")
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error setting destination", e)

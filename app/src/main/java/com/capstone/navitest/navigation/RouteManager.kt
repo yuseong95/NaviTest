@@ -70,11 +70,17 @@ class RouteManager(
     }
 
     fun setDestination(destination: Point) {
+        Log.d("RouteManager", "Setting destination: ${destination.longitude()}, ${destination.latitude()}")
+
         currentDestination = destination
 
-        // 출발지와 목적지가 모두 설정되었다면 경로 요청
+        // 현재 위치가 있는지 확인하고 경로 요청
         if (currentOrigin != null) {
+            Log.d("RouteManager", "Origin available, requesting route")
             requestRoute()
+        } else {
+            Log.d("RouteManager", "Origin not available yet, waiting for location")
+            // 위치가 아직 설정되지 않았다면 LocationObserver에서 처리될 것임
         }
     }
 
