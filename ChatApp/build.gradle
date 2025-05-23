@@ -19,7 +19,7 @@ def buildDir = project(":ChatApp").getLayout().getBuildDirectory()
 def libsDir = buildDir.dir("libs")
 
 android {
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         // TODO: use androidMinSDK value from gradle.properties once it updates to 31

@@ -4,7 +4,7 @@
             "outputFile": "com.quicinc.chatapp.test.ChatApp-mergeDebugAndroidTestResources-28:/values-w600dp-land-v13/values-w600dp-land-v13.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\kgykd\\.gradle\\caches\\8.11.1\\transforms\\9fa27a92b8d6dbbb4905d698c5f649c6\\transformed\\material-1.12.0\\res\\values-w600dp-land-v13\\values-w600dp-land-v13.xml",
+                    "source": "C:\\Users\\kgykd\\.gradle\\caches\\8.10.2\\transforms\\3ddb885721dc0e18aaec9a3af35e36e1\\transformed\\material-1.12.0\\res\\values-w600dp-land-v13\\values-w600dp-land-v13.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
