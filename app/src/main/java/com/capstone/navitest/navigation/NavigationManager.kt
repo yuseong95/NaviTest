@@ -2,17 +2,20 @@ package com.capstone.navitest.navigation
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.capstone.navitest.MainActivity
 import com.capstone.navitest.map.MapInitializer
 import com.capstone.navitest.map.MarkerManager
+import com.capstone.navitest.search.SearchButtonViewModel
 import com.capstone.navitest.ui.LanguageManager
 import com.capstone.navitest.ui.NavigationUI
-import com.mapbox.common.TileStore
+import com.capstone.navitest.utils.Constants
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.EdgeInsets
@@ -21,16 +24,11 @@ import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
-import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
 import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
-import com.mapbox.navigation.base.options.NavigationOptions
-import com.mapbox.navigation.base.options.RoutingTilesOptions
 import com.mapbox.navigation.base.route.NavigationRoute
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
-import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
-import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
@@ -45,19 +43,10 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
-import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
-import kotlinx.coroutines.launch
-
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.os.Build
-import com.capstone.navitest.search.SearchButtonViewModel
-import com.capstone.navitest.utils.Constants
-
 
 class NavigationManager(
     private val context: Context,
@@ -128,7 +117,7 @@ class NavigationManager(
     }
 
     // MapboxNavigation 설정 메서드
-    fun setMapboxNavigation(navigation: MapboxNavigation) {
+    private fun setMapboxNavigation(navigation: MapboxNavigation) {
         Log.d("NavigationManager", "Setting MapboxNavigation instance")
 
         if (!::mapboxNavigation.isInitialized) {
@@ -182,7 +171,12 @@ class NavigationManager(
         }
 
         // 경로 라인 API 및 뷰 초기화
-        routeLineApi = MapboxRouteLineApi(MapboxRouteLineApiOptions.Builder().build())
+        routeLineApi = MapboxRouteLineApi(
+            MapboxRouteLineApiOptions.Builder()
+                .vanishingRouteLineEnabled(true) // vanishing route line 기능 활성화
+                .vanishingRouteLineUpdateIntervalNano(100_000_000L) // 업데이트 간격 설정 (0.1초)
+                .build()
+        )
         routeLineView = MapboxRouteLineView(
             MapboxRouteLineViewOptions.Builder(context).build()
         )
@@ -330,6 +324,11 @@ class NavigationManager(
             viewportDataSource.onLocationChanged(enhancedLocation)
             viewportDataSource.evaluate()
 
+            // vanishing route line 업데이트
+            if (isNavigating) {
+                updateVanishingRouteLine(currentLocation)
+            }
+
             // 첫 위치 수신 시 카메라 위치 설정 - 이중 안전장치
             if (!hasInitializedCamera) {
                 mapView.mapboxMap.setCamera(
@@ -344,6 +343,30 @@ class NavigationManager(
         }
     }
 
+    // vanishing route line 업데이트 메서드
+    private fun updateVanishingRouteLine(currentLocation: Point) {
+        try {
+            // updateTraveledRouteLine은 콜백을 받지 않고 바로 결과를 반환
+            val result = routeLineApi.updateTraveledRouteLine(currentLocation)
+
+            // result 전체를 renderRouteLineUpdate에 전달
+            mapView.mapboxMap.style?.let { style ->
+                routeLineView.renderRouteLineUpdate(style, result)
+            }
+
+            // 로깅은 성공/실패에 따라 분기
+            result.value?.let {
+                Log.d("NavigationManager", "Vanishing route line updated for location: ${currentLocation.longitude()}, ${currentLocation.latitude()}")
+            } ?: run {
+                result.error?.let { error ->
+                    Log.e("NavigationManager", "Error updating vanishing route line: ${error.errorMessage}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error updating vanishing route line", e)
+        }
+    }
+
     // 경로 진행 관찰자
     private val routeProgressObserver = RouteProgressObserver { routeProgress ->
         try {
@@ -354,6 +377,15 @@ class NavigationManager(
             // 경로 진행 정보 업데이트
             val tripProgress = tripProgressApi.getTripProgress(routeProgress)
             navigationUI.updateTripProgressView(tripProgress)
+
+            // vanishing route line 업데이트 (가장 간단한 방법)
+            if (isNavigating) {
+                routeLineApi.updateWithRouteProgress(routeProgress) { result ->
+                    mapView.mapboxMap.style?.let { style ->
+                        routeLineView.renderRouteLineUpdate(style, result)
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error processing route progress", e)
         }
@@ -422,12 +454,32 @@ class NavigationManager(
 
         // 경로 라인 명시적으로 지우기
         if (::routeLineApi.isInitialized) {
-            lifecycleScope.launch {
-                routeLineApi.clearRouteLine { value ->
+            try {
+                // 콜백 버전의 clearRouteLine 사용
+                routeLineApi.clearRouteLine { clearRouteLineResult ->
                     mapView.mapboxMap.style?.let { style ->
-                        routeLineView.renderClearRouteLineValue(style, value)
+                        routeLineView.renderClearRouteLineValue(style, clearRouteLineResult)
+                    }
+
+                    // 성공/실패 로깅
+                    clearRouteLineResult.value?.let {
+                        Log.d("NavigationManager", "Route line cleared successfully")
+                    } ?: run {
+                        clearRouteLineResult.error?.let { error ->
+                            Log.e("NavigationManager", "Error clearing route line: ${error.errorMessage}")
+                        }
                     }
                 }
+
+                // vanishing route line 초기화
+                locationManager.getCurrentLocation()?.let { currentLocation ->
+                    val resetResult = routeLineApi.updateTraveledRouteLine(currentLocation)
+                    mapView.mapboxMap.style?.let { style ->
+                        routeLineView.renderRouteLineUpdate(style, resetResult)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("NavigationManager", "Error clearing route lines", e)
             }
         }
 
