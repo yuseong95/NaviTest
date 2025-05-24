@@ -1,185 +1,297 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/rootLayout"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- 지도 뷰 -->
     <com.mapbox.maps.MapView
         android:id="@+id/mapView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- 검색 버튼 - 화면 상단에 표시 -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/searchFab"
-        android:layout_width="wrap_content"
+    <!-- 상단 검색 영역 -->
+    <RelativeLayout
+        android:id="@+id/topSearchArea"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
-        android:layout_margin="16dp"
-        android:src="@android:drawable/ic_search_category_default"
-        app:tint="@android:color/white"
-        app:backgroundTint="@color/purple_500" />
+        android:layout_alignParentTop="true"
+        android:padding="16dp">
 
-    <!-- 검색 UI - 버튼 클릭 시 표시 -->
+        <!-- 검색 버튼 -->
+        <RelativeLayout
+            android:id="@+id/searchContainer"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/search_container_background"
+            android:elevation="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/searchIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="16dp"
+                android:src="@drawable/ic_search"
+                app:tint="@color/icon_color" />
+
+            <TextView
+                android:id="@+id/searchHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="12dp"
+                android:layout_toEndOf="@id/searchIcon"
+                android:text="@string/search_hint"
+                android:textColor="@color/hint_text_color"
+                android:textSize="16sp" />
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+    <!-- 검색 UI 오버레이 -->
     <LinearLayout
-        android:id="@+id/searchContainer"
+        android:id="@+id/searchOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/white"
+        android:background="@color/overlay_background"
         android:orientation="vertical"
         android:visibility="gone">
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:layout_height="56dp"
+            android:background="@color/search_bar_background"
+            android:elevation="8dp"
             android:padding="8dp">
 
             <ImageButton
                 android:id="@+id/backButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_close_clear_cancel" />
+                android:src="@drawable/ic_arrow_back" />
 
             <EditText
                 android:id="@+id/searchEditText"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_weight="1"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_toEndOf="@id/backButton"
+                android:layout_toStartOf="@id/searchButton"
                 android:background="@android:color/transparent"
-                android:hint="랜드마크/주소 검색 (예: 서울시청, 강남역)"
+                android:hint="@string/search_detailed_hint"
                 android:imeOptions="actionSearch"
                 android:inputType="text"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp" />
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textSize="16sp" />
 
             <ImageButton
                 android:id="@+id/searchButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_search" />
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#E0E0E0" />
+                android:src="@drawable/ic_search" />
+        </RelativeLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/searchResultsView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="@color/results_background"
             android:padding="8dp" />
+
     </LinearLayout>
 
-    <com.mapbox.navigation.ui.components.maneuver.view.MapboxManeuverView
-        android:id="@+id/maneuverView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:layout_marginTop="16dp"
-        android:visibility="gone" />
-
-    <com.mapbox.navigation.ui.components.tripprogress.view.MapboxTripProgressView
-        android:id="@+id/tripProgressView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:layout_marginTop="120dp"
-        android:visibility="gone" />
-
-    <!-- 내비게이션 모드 선택 UI - 검색 버튼 아래에 추가 -->
+    <!-- 내비게이션 안내 UI -->
     <LinearLayout
-        android:id="@+id/navigationModeContainer"
-        android:layout_width="wrap_content"
+        android:id="@+id/navigationGuidanceContainer"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="80dp"
-        android:background="@android:drawable/dialog_holo_light_frame"
-        android:orientation="horizontal"
-        android:padding="8dp">
+        android:layout_below="@id/topSearchArea"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-        <RadioGroup
-            android:id="@+id/navigationModeRadioGroup"
-            android:layout_width="wrap_content"
+        <com.mapbox.navigation.ui.components.maneuver.view.MapboxManeuverView
+            android:id="@+id/maneuverView"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:background="@drawable/guidance_background"
+            android:elevation="4dp" />
 
-            <RadioButton
-                android:id="@+id/radioButtonDriving"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🚗 자동차"
-                android:textSize="12sp" />
+        <com.mapbox.navigation.ui.components.tripprogress.view.MapboxTripProgressView
+            android:id="@+id/tripProgressView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/progress_background"
+            android:elevation="4dp" />
 
-            <RadioButton
-                android:id="@+id/radioButtonWalking"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🚶 도보"
-                android:textSize="12sp" />
-
-            <RadioButton
-                android:id="@+id/radioButtonCycling"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🚴 자전거"
-                android:textSize="12sp" />
-        </RadioGroup>
     </LinearLayout>
 
+    <!-- 사이드 컨트롤 패널 -->
     <LinearLayout
-        android:id="@+id/buttonLayout"
+        android:id="@+id/sideControlPanel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginBottom="16dp"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
         android:layout_marginEnd="16dp"
         android:orientation="vertical">
 
-        <Button
+        <!-- 재중앙화 버튼 -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/recenterButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="위치로 돌아가기"
-            android:visibility="gone" />
+            android:layout_marginBottom="8dp"
+            android:src="@drawable/ic_my_location"
+            android:visibility="gone"
+            app:backgroundTint="@color/fab_background"
+            app:fabSize="mini"
+            app:tint="@color/fab_icon" />
 
-        <RadioGroup
-            android:id="@+id/languageRadioGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <RadioButton
-                android:id="@+id/radioButtonKo"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="한국어" />
-
-            <RadioButton
-                android:id="@+id/radioButtonEn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="English" />
-        </RadioGroup>
-
-        <Button
-            android:id="@+id/startNavigationButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:enabled="false"
-            android:text="내비게이션 시작" />
-
-        <Button
-            android:id="@+id/cancelButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="내비게이션 취소"
-            android:visibility="gone" />
     </LinearLayout>
 
-</FrameLayout>
+    <!-- 하단 네비게이션 바 -->
+    <RelativeLayout
+        android:id="@+id/bottomNavigationContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:padding="16dp">
+
+        <!-- 메인 액션 버튼 (시작/취소) -->
+        <Button
+            android:id="@+id/mainActionButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_above="@id/bottomNavigation"
+            android:layout_marginBottom="8dp"
+            android:text="@string/start_navigation"
+            android:textSize="16sp"
+            android:visibility="gone"
+            android:background="@drawable/primary_button_background" />
+
+        <!-- 하단 네비게이션 바 -->
+        <LinearLayout
+            android:id="@+id/bottomNavigation"
+            android:layout_width="312dp"
+            android:layout_height="60dp"
+            android:layout_centerHorizontal="true"
+            android:background="@drawable/navigation_background"
+            android:elevation="8dp"
+            android:orientation="horizontal"
+            android:weightSum="3">
+
+            <!-- Home -->
+            <LinearLayout
+                android:id="@+id/navHome"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navHomeIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_home"
+                    app:tint="@color/nav_icon_active" />
+
+                <TextView
+                    android:id="@+id/navHomeText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/nav_home"
+                    android:textColor="@color/nav_text_active"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+
+            <!-- Navigation -->
+            <LinearLayout
+                android:id="@+id/navNavigation"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navNavigationIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_navigation"
+                    app:tint="@color/nav_icon_inactive" />
+
+                <TextView
+                    android:id="@+id/navNavigationText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/nav_navigation"
+                    android:textColor="@color/nav_text_inactive"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+
+            <!-- Settings -->
+            <LinearLayout
+                android:id="@+id/navSettings"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navSettingsIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_settings"
+                    app:tint="@color/nav_icon_inactive" />
+
+                <TextView
+                    android:id="@+id/navSettingsText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/nav_settings"
+                    android:textColor="@color/nav_text_inactive"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+    <!-- 네비게이션 모드 선택 패널 (슬라이드업) -->
+    <include layout="@layout/navigation_mode_panel" />
+
+    <!-- 설정 패널 (슬라이드업) -->
+    <include layout="@layout/settings_panel" />
+
+</RelativeLayout>

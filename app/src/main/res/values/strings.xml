@@ -1,3 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 기존 문자열 -->
     <string name="app_name">NaviTest</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">홈</string>
+    <string name="nav_navigation">내비게이션</string>
+    <string name="nav_settings">설정</string>
+
+    <!-- Search -->
+    <string name="search_hint">목적지 검색</string>
+    <string name="search_detailed_hint">랜드마크나 주소를 입력하세요</string>
+
+    <!-- Navigation Modes -->
+    <string name="navigation_mode_title">내비게이션 모드</string>
+    <string name="driving_mode">자동차</string>
+    <string name="driving_mode_desc">최적화된 도로 경로</string>
+    <string name="walking_mode">도보</string>
+    <string name="walking_mode_desc">보행자 전용 경로</string>
+    <string name="cycling_mode">자전거</string>
+    <string name="cycling_mode_desc">자전거 도로 우선</string>
+
+    <!-- Settings -->
+    <string name="settings_title">설정</string>
+    <string name="language_setting">언어 설정</string>
+    <string name="korean">한국어</string>
+    <string name="english">English</string>
+
+    <string name="offline_maps">오프라인 지도</string>
+    <string name="offline_maps_desc">지도 다운로드 관리</string>
+
+    <string name="app_info">앱 정보</string>
+    <string name="app_info_desc">버전 및 라이선스</string>
+
+    <!-- Buttons -->
+    <string name="start_navigation">내비게이션 시작</string>
+    <string name="cancel_navigation">내비게이션 취소</string>
+    <string name="recenter_camera">위치로 이동</string>
+
+    <!-- Messages -->
+    <string name="destination_set">목적지가 설정되었습니다</string>
+    <string name="navigation_started">내비게이션이 시작되었습니다</string>
+    <string name="navigation_canceled">내비게이션이 취소되었습니다</string>
+    <string name="location_permission_required">위치 권한이 필요합니다</string>
+    <string name="network_required_for_search">검색 기능은 인터넷 연결이 필요합니다</string>
+    <string name="offline_mode_active">오프라인 모드 활성화</string>
+    <string name="online_mode_active">온라인 모드 활성화</string>
+
+    <!-- Error Messages -->
+    <string name="route_not_found">경로를 찾을 수 없습니다</string>
+    <string name="search_no_results">검색 결과가 없습니다</string>
+    <string name="initialization_error">초기화 중 오류가 발생했습니다</string>
+
 </resources>

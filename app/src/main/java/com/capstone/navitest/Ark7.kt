@@ -1,4 +1,4 @@
-package com.capstone.navitest
+/*package com.capstone.navitest
 
 import android.Manifest
 import android.R.attr.visibility
@@ -779,4 +779,4 @@ class Ark7 : ComponentActivity() {
         // Clean up MapboxNavigation to prevent memory leaks
         MapboxNavigationApp.disable()
     }
-}
+}*/
