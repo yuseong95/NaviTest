@@ -68,7 +68,6 @@
             android:layout_height="1dp"
             android:background="#E0E0E0" />
 
-        <!-- ✅ 중요: SearchResultsView가 아닌 RecyclerView 사용 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/searchResultsView"
             android:layout_width="match_parent"
@@ -91,6 +90,47 @@
         android:layout_gravity="top"
         android:layout_marginTop="120dp"
         android:visibility="gone" />
+
+    <!-- 내비게이션 모드 선택 UI - 검색 버튼 아래에 추가 -->
+    <LinearLayout
+        android:id="@+id/navigationModeContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="80dp"
+        android:background="@android:drawable/dialog_holo_light_frame"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <RadioGroup
+            android:id="@+id/navigationModeRadioGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/radioButtonDriving"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚗 자동차"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/radioButtonWalking"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚶 도보"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/radioButtonCycling"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚴 자전거"
+                android:textSize="12sp" />
+        </RadioGroup>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/buttonLayout"

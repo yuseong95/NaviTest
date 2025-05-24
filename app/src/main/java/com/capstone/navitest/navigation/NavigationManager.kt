@@ -56,6 +56,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import com.capstone.navitest.search.SearchButtonViewModel
+import com.capstone.navitest.utils.Constants
 
 
 class NavigationManager(
@@ -361,14 +362,10 @@ class NavigationManager(
     // 네비게이션 시작
     fun startNavigation() {
         if (::routeManager.isInitialized && routeManager.hasValidRoute()) {
-            Log.d("NavigationManager", "Starting navigation")
-
             isNavigating = true
 
-            // 운전 시점으로 카메라 줌/피치 오버라이드
-            viewportDataSource.followingZoomPropertyOverride(20.0)
-            viewportDataSource.followingPitchPropertyOverride(45.0)
-            viewportDataSource.evaluate()
+            // 내비게이션 모드별 카메라 설정
+            applyCameraSettingsForNavigationMode()
 
             // UI 업데이트
             navigationUI.updateUIForNavigationStart()
@@ -378,9 +375,32 @@ class NavigationManager(
 
             // 경로 재요청
             routeManager.requestRoute()
-
-            Log.d("NavigationManager", "Navigation started")
         }
+    }
+
+    // 내비게이션 모드별 카메라 설정 적용
+    private fun applyCameraSettingsForNavigationMode() {
+        when (languageManager.currentNavigationMode) {
+            Constants.NAVIGATION_MODE_WALKING -> {
+                // 도보: 더 넓은 시야, 덜 기울어진 각도
+                viewportDataSource.followingZoomPropertyOverride(16.0)
+                viewportDataSource.followingPitchPropertyOverride(15.0)
+                Log.d("NavigationManager", "Applied walking camera settings: zoom=16.0, pitch=15.0")
+            }
+            Constants.NAVIGATION_MODE_CYCLING -> {
+                // 자전거: 중간 시야, 중간 각도
+                viewportDataSource.followingZoomPropertyOverride(17.0)
+                viewportDataSource.followingPitchPropertyOverride(25.0)
+                Log.d("NavigationManager", "Applied cycling camera settings: zoom=17.0, pitch=25.0")
+            }
+            Constants.NAVIGATION_MODE_DRIVING -> {
+                // 자동차: 가까운 시야, 3D 시점
+                viewportDataSource.followingZoomPropertyOverride(20.0)
+                viewportDataSource.followingPitchPropertyOverride(45.0)
+                Log.d("NavigationManager", "Applied driving camera settings: zoom=20.0, pitch=45.0")
+            }
+        }
+        viewportDataSource.evaluate()
     }
 
     fun cancelNavigation() {

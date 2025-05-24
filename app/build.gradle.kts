@@ -48,6 +48,9 @@ dependencies {
     implementation("com.mapbox.navigationcore:tripdata:3.9.0-rc.1")
     implementation("com.mapbox.navigationcore:ui-components:3.9.0-rc.1")
 
+    // Mapbox Directions API - DirectionsCriteria 사용을 위해 추가
+    implementation("com.mapbox.mapboxsdk:mapbox-sdk-services:7.2.0")
+
     // Mapbox Search SDK - 두 API 모두 지원
     implementation("com.mapbox.search:mapbox-search-android:2.12.0-beta.1") // Search Box API + Geocoding API 포함
     implementation("com.mapbox.search:place-autocomplete:2.12.0-beta.1")
