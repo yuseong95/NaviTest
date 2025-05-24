@@ -4,6 +4,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.RelativeLayout  // 누락된 import 추가
 import android.widget.Toast
 import com.capstone.navitest.MainActivity
 import com.capstone.navitest.R
@@ -21,34 +22,29 @@ class NavigationUI(
 ) {
     private lateinit var navigationManager: NavigationManager
 
-    // UI 컴포넌트들 - null 안전성을 위해 lazy 초기화
-    private val mainActionButton: Button by lazy { activity.findViewById(R.id.mainActionButton) }
+    // UI 컴포넌트들 - MainActivity와 중복되지 않는 컴포넌트들만 관리
     private val recenterButton: com.google.android.material.floatingactionbutton.FloatingActionButton by lazy {
         activity.findViewById(R.id.recenterButton)
     }
     private val navigationGuidanceContainer: LinearLayout by lazy {
         activity.findViewById(R.id.navigationGuidanceContainer)
     }
-    private val maneuverView: MapboxManeuverView by lazy { activity.findViewById(R.id.maneuverView) }
-    private val tripProgressView: MapboxTripProgressView by lazy { activity.findViewById(R.id.tripProgressView) }
-    private val bottomNavigationContainer: RelativeLayout by lazy {
-        activity.findViewById(R.id.bottomNavigationContainer)
+    private val maneuverView: MapboxManeuverView by lazy {
+        activity.findViewById(R.id.maneuverView)
+    }
+    private val tripProgressView: MapboxTripProgressView by lazy {
+        activity.findViewById(R.id.tripProgressView)
     }
 
     init {
-        // 초기화는 setNavigationManager에서 수행
         Log.d("NavigationUI", "NavigationUI created")
     }
 
     private fun setupInitialState() {
         try {
-            // 초기 상태 설정
-            mainActionButton.visibility = View.GONE
+            // 초기 상태 설정 - NavigationUI가 직접 관리하는 컴포넌트들만
             recenterButton.visibility = View.GONE
             navigationGuidanceContainer.visibility = View.GONE
-
-            // 초기 텍스트 설정
-            updateUITexts()
 
             Log.d("NavigationUI", "Initial state setup completed")
         } catch (e: Exception) {
@@ -58,8 +54,6 @@ class NavigationUI(
 
     private fun setupButtonListeners() {
         try {
-            // 메인 액션 버튼 리스너는 MainActivity에서 처리
-
             // 재중앙화 버튼 리스너
             recenterButton.setOnClickListener {
                 if (::navigationManager.isInitialized) {
@@ -78,20 +72,13 @@ class NavigationUI(
     fun updateUIForNavigationStart() {
         activity.runOnUiThread {
             try {
-                // 메인 액션 버튼을 "취소"로 변경
-                mainActionButton.text = languageManager.getLocalizedString(
-                    "내비게이션 취소",
-                    "Cancel Navigation"
-                )
-                mainActionButton.visibility = View.VISIBLE
+                // MainActivity에 UI 상태 변경 요청 (중복 관리 방지)
+                activity.setNavigationActive(true)
 
-                // 내비게이션 안내 UI 표시
+                // NavigationUI가 직접 관리하는 내비게이션 안내 UI만 표시
                 navigationGuidanceContainer.visibility = View.VISIBLE
                 maneuverView.visibility = View.VISIBLE
                 tripProgressView.visibility = View.VISIBLE
-
-                // 하단 내비게이션 바 숨기기 (내비게이션 중에는 모드 변경 불가)
-                bottomNavigationContainer.visibility = View.GONE
 
                 // 재중앙화 버튼은 카메라 상태에 따라 NavigationManager에서 제어
 
@@ -105,23 +92,16 @@ class NavigationUI(
     fun updateUIForNavigationCancel() {
         activity.runOnUiThread {
             try {
-                // 메인 액션 버튼을 "시작"으로 변경하고 숨기기
-                mainActionButton.text = languageManager.getLocalizedString(
-                    "내비게이션 시작",
-                    "Start Navigation"
-                )
-                mainActionButton.visibility = View.GONE
+                // MainActivity에 UI 상태 변경 요청 (중복 관리 방지)
+                activity.setNavigationActive(false)
 
-                // 내비게이션 안내 UI 숨기기
+                // NavigationUI가 직접 관리하는 내비게이션 안내 UI만 숨기기
                 navigationGuidanceContainer.visibility = View.GONE
                 maneuverView.visibility = View.GONE
                 tripProgressView.visibility = View.GONE
 
                 // 재중앙화 버튼 숨기기
                 recenterButton.visibility = View.GONE
-
-                // 하단 내비게이션 바 다시 표시
-                bottomNavigationContainer.visibility = View.VISIBLE
 
                 Log.d("NavigationUI", "Navigation cancel UI updated")
             } catch (e: Exception) {
@@ -130,23 +110,11 @@ class NavigationUI(
         }
     }
 
+    // 이 메서드는 더 이상 직접 UI를 제어하지 않고 MainActivity에 요청
     fun setStartButtonEnabled(enabled: Boolean) {
-        activity.runOnUiThread {
-            try {
-                if (enabled) {
-                    mainActionButton.visibility = View.VISIBLE
-                    mainActionButton.isEnabled = true
-                    mainActionButton.alpha = 1.0f
-                } else {
-                    // 내비게이션 중이 아니라면 버튼 숨기기
-                    if (::navigationManager.isInitialized && !navigationManager.isNavigating()) {
-                        mainActionButton.visibility = View.GONE
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("NavigationUI", "Error setting start button enabled state", e)
-            }
-        }
+        // MainActivity의 updateNavigationUI에서 처리하므로
+        // 여기서는 로깅만 수행
+        Log.d("NavigationUI", "Start button enabled state: $enabled")
     }
 
     fun setRecenterButtonVisibility(visible: Boolean) {
@@ -164,7 +132,7 @@ class NavigationUI(
             try {
                 maneuverView.renderManeuvers(maneuversResult)
             } catch (e: Exception) {
-                android.util.Log.e("NavigationUI", "Error updating maneuver view", e)
+                Log.e("NavigationUI", "Error updating maneuver view", e)
             }
         }
     }
@@ -174,7 +142,7 @@ class NavigationUI(
             try {
                 tripProgressView.render(tripProgress)
             } catch (e: Exception) {
-                android.util.Log.e("NavigationUI", "Error updating trip progress view", e)
+                Log.e("NavigationUI", "Error updating trip progress view", e)
             }
         }
     }
@@ -193,33 +161,14 @@ class NavigationUI(
         // NavigationManager가 설정된 후에 UI 초기화 수행
         setupInitialState()
         setupButtonListeners()
-        updateUITexts()
 
         Log.d("NavigationUI", "NavigationManager set and UI initialized")
     }
 
-    private fun updateUITexts() {
-        try {
-            // 현재 상태에 따라 버튼 텍스트 업데이트
-            if (::navigationManager.isInitialized && navigationManager.isNavigating()) {
-                mainActionButton.text = languageManager.getLocalizedString(
-                    "내비게이션 취소",
-                    "Cancel Navigation"
-                )
-            } else {
-                mainActionButton.text = languageManager.getLocalizedString(
-                    "내비게이션 시작",
-                    "Start Navigation"
-                )
-            }
-        } catch (e: Exception) {
-            Log.e("NavigationUI", "Error updating UI texts", e)
-        }
-    }
-
-    // 언어 변경 시 UI 텍스트 업데이트
+    // 언어 변경 시 UI 텍스트 업데이트 (필요시 MainActivity에 요청)
     fun updateLanguage() {
-        updateUITexts()
+        Log.d("NavigationUI", "Language updated - delegating to MainActivity")
+        // MainActivity의 updateUITexts()에서 처리
     }
 
     @Deprecated("No longer needed - handled by MainActivity")
