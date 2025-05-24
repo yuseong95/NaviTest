@@ -436,23 +436,43 @@ class NavigationManager(
     }
 
     fun cancelNavigation() {
-        Log.d("NavigationManager", "Canceling navigation")
+        try {
+            Log.d("NavigationManager", "Canceling navigation")
 
-        isNavigating = false
+            isNavigating = false
 
-        // 카메라 오버라이드 해제
-        viewportDataSource.followingZoomPropertyOverride(null)
-        viewportDataSource.followingPitchPropertyOverride(null)
-        viewportDataSource.evaluate()
+            // 카메라 오버라이드 해제
+            viewportDataSource.followingZoomPropertyOverride(null)
+            viewportDataSource.followingPitchPropertyOverride(null)
+            viewportDataSource.evaluate()
 
-        // UI 업데이트
-        navigationUI.updateUIForNavigationCancel()
+            // UI 업데이트
+            navigationUI.updateUIForNavigationCancel()
 
-        // ViewModel 상태 업데이트 - 목적지와 내비게이션 모두 리셋
-        searchButtonViewModel?.setNavigationActive(false)
-        searchButtonViewModel?.setHasDestination(false)
+            // ViewModel 상태 업데이트 - 목적지와 내비게이션 모두 리셋
+            searchButtonViewModel?.setNavigationActive(false)
+            searchButtonViewModel?.setHasDestination(false)
 
-        // 경로 라인 명시적으로 지우기
+            // 경로 라인 명시적으로 지우기
+            clearAllRouteLines()
+
+            // 경로 및 마커 삭제
+            if (::routeManager.isInitialized) {
+                routeManager.clearRoutes()
+            }
+
+            if (::markerManager.isInitialized) {
+                markerManager.clearMarkers()
+            }
+
+            Log.d("NavigationManager", "Navigation canceled successfully")
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error canceling navigation", e)
+        }
+    }
+
+    // 경로 라인 정리 메서드 추가
+    private fun clearAllRouteLines() {
         if (::routeLineApi.isInitialized) {
             try {
                 // 콜백 버전의 clearRouteLine 사용
@@ -482,17 +502,6 @@ class NavigationManager(
                 Log.e("NavigationManager", "Error clearing route lines", e)
             }
         }
-
-        // 경로 및 마커 삭제
-        if (::routeManager.isInitialized) {
-            routeManager.clearRoutes()
-        }
-
-        if (::markerManager.isInitialized) {
-            markerManager.clearMarkers()
-        }
-
-        Log.d("NavigationManager", "Navigation canceled")
     }
 
     // 카메라 재중앙화
@@ -538,12 +547,15 @@ class NavigationManager(
                 if (routeManager.getDestination() != null) {
                     Log.d("NavigationManager", "Both origin and destination available, enabling start button")
                     navigationUI.setStartButtonEnabled(true)
+                    searchButtonViewModel?.setHasDestination(true)
                 }
 
                 // 네비게이션 중이고 목적지가 설정된 경우 주기적으로 경로 업데이트
                 if (isNavigating && routeManager.getDestination() != null) {
                     routeManager.requestRoute()
                 }
+            } else {
+                Log.w("NavigationManager", "RouteManager not initialized in onLocationChanged")
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error handling location change", e)
@@ -570,7 +582,7 @@ class NavigationManager(
                 // 경로 관리자에 목적지 설정
                 routeManager.setDestination(point)
 
-                // UI 업데이트 - 시작 버튼 활성화
+                // NavigationUI를 통해 시작 버튼 활성화
                 navigationUI.setStartButtonEnabled(true)
 
                 // ViewModel에 목적지 설정 상태 알림
@@ -586,12 +598,22 @@ class NavigationManager(
                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 }
 
-                Log.d("NavigationManager", "Destination set successfully (${if(isOffline) "offline" else "online"} mode), start button enabled")
+                Log.d("NavigationManager", "Destination set successfully (${if(isOffline) "offline" else "online"} mode)")
             } else {
                 Log.e("NavigationManager", "MarkerManager or RouteManager not initialized")
+                throw IllegalStateException("Navigation components not properly initialized")
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error setting destination", e)
+            val message = languageManager.getLocalizedString(
+                "목적지 설정 중 오류가 발생했습니다: ${e.message}",
+                "Error setting destination: ${e.message}"
+            )
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+
+            // 오류 발생 시 UI 상태도 초기화
+            searchButtonViewModel?.setHasDestination(false)
+            navigationUI.setStartButtonEnabled(false)
         }
     }
 
@@ -623,24 +645,28 @@ class NavigationManager(
     }
 
     fun checkNetworkStatus() {
-        val isOnline = isNetworkAvailable()
-        val message = if (isOnline) {
-            languageManager.getLocalizedString(
-                "온라인 모드: 검색 및 내비게이션 기능 모두 사용 가능",
-                "Online mode: Search and navigation features available"
-            )
-        } else {
-            languageManager.getLocalizedString(
-                "오프라인 모드: 내비게이션 사용 가능 (검색 기능은 온라인 필요)",
-                "Offline mode: Navigation available (Search requires online connection)"
-            )
-        }
+        try {
+            val isOnline = isNetworkAvailable()
+            val message = if (isOnline) {
+                languageManager.getLocalizedString(
+                    "온라인 모드: 검색 및 내비게이션 기능 모두 사용 가능",
+                    "Online mode: Search and navigation features available"
+                )
+            } else {
+                languageManager.getLocalizedString(
+                    "오프라인 모드: 내비게이션 사용 가능 (검색 기능은 온라인 필요)",
+                    "Offline mode: Navigation available (Search requires online connection)"
+                )
+            }
 
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
-        // 검색 버튼만 활성화/비활성화 (내비게이션은 오프라인에서도 작동)
-        if (context is MainActivity) {
-            context.setSearchButtonEnabled(isOnline)
+            // MainActivity에 네트워크 상태 알림
+            if (context is MainActivity) {
+                context.setSearchButtonEnabled(isOnline)
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error checking network status", e)
         }
     }
 
