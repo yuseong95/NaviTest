@@ -524,7 +524,17 @@ class NavigationManager(
                 // ViewModel에 목적지 설정 상태 알림
                 searchButtonViewModel?.setHasDestination(true)
 
-                Log.d("NavigationManager", "Destination set successfully, start button enabled")
+                // 오프라인 상태에서 목적지 설정 시 안내 메시지
+                val isOffline = !isNetworkAvailable()
+                if (isOffline) {
+                    val message = languageManager.getLocalizedString(
+                        "오프라인 모드: 다운로드된 지역 내에서 내비게이션이 가능합니다",
+                        "Offline mode: Navigation available within downloaded areas"
+                    )
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                }
+
+                Log.d("NavigationManager", "Destination set successfully (${if(isOffline) "offline" else "online"} mode), start button enabled")
             } else {
                 Log.e("NavigationManager", "MarkerManager or RouteManager not initialized")
             }
@@ -532,6 +542,7 @@ class NavigationManager(
             Log.e("NavigationManager", "Error setting destination", e)
         }
     }
+
 
     fun getRouteManager(): RouteManager {
         if (!::routeManager.isInitialized) {
@@ -563,19 +574,19 @@ class NavigationManager(
         val isOnline = isNetworkAvailable()
         val message = if (isOnline) {
             languageManager.getLocalizedString(
-                "온라인 모드: 검색 기능 사용 가능",
-                "Online mode: Search feature available"
+                "온라인 모드: 검색 및 내비게이션 기능 모두 사용 가능",
+                "Online mode: Search and navigation features available"
             )
         } else {
             languageManager.getLocalizedString(
-                "오프라인 모드: 내비게이션만 사용 가능",
-                "Offline mode: Navigation only"
+                "오프라인 모드: 내비게이션 사용 가능 (검색 기능은 온라인 필요)",
+                "Offline mode: Navigation available (Search requires online connection)"
             )
         }
 
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
-        // 검색 버튼 활성화/비활성화 (MainActivity에 메소드 추가 필요)
+        // 검색 버튼만 활성화/비활성화 (내비게이션은 오프라인에서도 작동)
         if (context is MainActivity) {
             context.setSearchButtonEnabled(isOnline)
         }

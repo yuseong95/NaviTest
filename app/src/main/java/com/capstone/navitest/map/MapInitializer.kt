@@ -1,6 +1,7 @@
 package com.capstone.navitest.map
 
 import android.content.Context
+import android.util.Log
 import com.capstone.navitest.MainActivity
 import com.capstone.navitest.R
 import com.capstone.navitest.ui.LanguageManager
@@ -25,11 +26,25 @@ class MapInitializer(private val activity: MainActivity, private val languageMan
     lateinit var pointAnnotationManager: PointAnnotationManager
         private set
 
+    companion object {
+        // TileStore 설정을 static 메서드로 분리 (MainActivity에서 먼저 호출)
+        fun setupGlobalTileStore(context: Context): TileStore {
+            val tilePath = File(context.filesDir, "mbx-offline").absolutePath
+            val tileStore = TileStore.create(tilePath)
+
+            // 글로벌 TileStore 설정 (MapboxNavigationApp.setup() 전에 필요)
+            MapboxMapsOptions.tileStore = tileStore
+
+            Log.d("MapInitializer", "Global TileStore configured at: $tilePath")
+            return tileStore
+        }
+    }
+
     init {
         // Mapbox 액세스 토큰 설정
         MapboxOptions.accessToken = activity.getString(R.string.mapbox_access_token)
 
-        // TileStore 초기화
+        // TileStore 초기화 (이미 글로벌 설정이 되어 있어야 함)
         initializeTileStore()
 
         // 맵뷰 참조 가져오기
@@ -40,8 +55,11 @@ class MapInitializer(private val activity: MainActivity, private val languageMan
         val tilePath = File(activity.filesDir, "mbx-offline").absolutePath
         tileStore = TileStore.create(tilePath)
 
-        // TileStore 설정 적용
-        MapboxMapsOptions.tileStore = tileStore
+        // 이미 setupGlobalTileStore()에서 설정했지만 안전을 위해 다시 확인
+        if (MapboxMapsOptions.tileStore == null) {
+            MapboxMapsOptions.tileStore = tileStore
+            Log.d("MapInitializer", "TileStore backup configuration applied")
+        }
     }
 
     fun initializeMap() {
@@ -71,7 +89,6 @@ class MapInitializer(private val activity: MainActivity, private val languageMan
                 )
 
                 // 각 레이어의 text-field 속성을 한국어 필드로 변경
-                // Redundant 'let' call 제거
                 labelLayers.forEach { layerId ->
                     val layer = style.getLayerAs<com.mapbox.maps.extension.style.layers.generated.SymbolLayer>(layerId)
                     layer?.textField("{name_ko}")

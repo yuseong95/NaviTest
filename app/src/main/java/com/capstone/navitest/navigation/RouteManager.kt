@@ -75,11 +75,21 @@ class RouteManager(
         val origin = currentOrigin ?: return
         val destination = currentDestination ?: return
 
-        // 1. 네트워크 연결 확인
+        // 1. 디바운싱 체크 (기존과 동일)
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastRouteRequestTime < Constants.ROUTE_REQUEST_DEBOUNCE_TIME) {
+            Log.d("RouteManager", "Route request debounced")
+            return
+        }
+        lastRouteRequestTime = currentTime
+
+        // 2. 네트워크 연결 상태 확인
         val isNetworkAvailable = isNetworkConnected()
 
-        // 2. 오프라인 상태이고 캐시된 경로가 있으면 사용
         if (!isNetworkAvailable) {
+            Log.d("RouteManager", "Offline mode detected, attempting offline route calculation")
+
+            // 오프라인 상태에서 캐시된 경로가 있으면 사용
             if (useCachedRoutesIfAvailable()) {
                 val message = languageManager.getLocalizedString(
                     "오프라인 모드: 캐시된 경로 사용",
@@ -87,27 +97,14 @@ class RouteManager(
                 )
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 return
-            } else {
-                val message = languageManager.getLocalizedString(
-                    "오프라인 모드: 새 경로를 계산할 수 없습니다. 인터넷 연결이 필요합니다.",
-                    "Offline mode: Cannot calculate new route. Internet connection required."
-                )
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                return
             }
+
+            // 캐시된 경로가 없어도 오프라인 타일로 경로 계산 시도
+            Log.d("RouteManager", "No cached routes, attempting offline route calculation with downloaded tiles")
         }
 
-        // 3. 디바운싱 체크
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastRouteRequestTime < Constants.ROUTE_REQUEST_DEBOUNCE_TIME) {
-            Log.d("RouteManager", "Route request debounced")
-            return
-        }
-
-        lastRouteRequestTime = currentTime
-
-        // 4. 온라인 경로 요청
-        performOnlineRouteRequest(origin, destination)
+        // 3. 경로 요청 (온라인/오프라인 모두 동일하게 시도)
+        performRouteRequest(origin, destination, isNetworkAvailable)
     }
 
     // 자동 업데이트용 경로 요청 메서드 추가
@@ -134,26 +131,24 @@ class RouteManager(
         }
     }
 
-    // 온라인 경로 요청 수행 - 수정된 버전
-    private fun performOnlineRouteRequest(origin: Point, destination: Point) {
+    private fun performRouteRequest(origin: Point, destination: Point, isOnline: Boolean) {
         val currentMode = languageManager.currentNavigationMode
         val modeDisplayName = languageManager.getCurrentNavigationModeDisplayName()
 
-        Log.d("RouteManager", "Requesting $currentMode route from: ${origin.longitude()},${origin.latitude()} to: ${destination.longitude()},${destination.latitude()}")
+        Log.d("RouteManager", "Requesting $currentMode route (${if(isOnline) "online" else "offline"}) from: ${origin.longitude()},${origin.latitude()} to: ${destination.longitude()},${destination.latitude()}")
 
-        // 수정된 RouteOptions 빌더 - 프로필을 applyDefaultNavigationOptions에 전달
         val navigationProfile = getNavigationProfile()
 
         try {
             val routeOptions = RouteOptions.builder()
-                .applyDefaultNavigationOptions(navigationProfile) // 프로필을 파라미터로 전달
+                .applyDefaultNavigationOptions(navigationProfile)
                 .coordinatesList(listOf(origin, destination))
                 .layersList(listOf(mapboxNavigation.getZLevel(), null))
                 .language(languageManager.currentLanguage)
                 .steps(true)
                 .build()
 
-            Log.d("RouteManager", "Route options created successfully with profile: $navigationProfile")
+            Log.d("RouteManager", "Route options created for ${if(isOnline) "online" else "offline"} calculation with profile: $navigationProfile")
 
             mapboxNavigation.requestRoutes(
                 routeOptions,
@@ -165,17 +160,24 @@ class RouteManager(
                     override fun onFailure(reasons: List<RouterFailure>, routeOptions: RouteOptions) {
                         Log.e("RouteManager", "Route request failed: ${reasons.firstOrNull()?.message}")
 
-                        val message = languageManager.getLocalizedString(
-                            "$modeDisplayName 경로를 찾을 수 없습니다: ${reasons.firstOrNull()?.message}",
-                            "Could not find $modeDisplayName route: ${reasons.firstOrNull()?.message}"
-                        )
+                        val message = if (isOnline) {
+                            languageManager.getLocalizedString(
+                                "$modeDisplayName 경로를 찾을 수 없습니다: ${reasons.firstOrNull()?.message}",
+                                "Could not find $modeDisplayName route: ${reasons.firstOrNull()?.message}"
+                            )
+                        } else {
+                            languageManager.getLocalizedString(
+                                "오프라인 모드에서 $modeDisplayName 경로를 찾을 수 없습니다. 다운로드된 지역 범위를 확인해주세요.",
+                                "Could not find $modeDisplayName route in offline mode. Please check downloaded area coverage."
+                            )
+                        }
 
-                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         routeChangeListener?.onRouteError(message)
                     }
 
                     override fun onRoutesReady(routes: List<NavigationRoute>, routerOrigin: String) {
-                        Log.d("RouteManager", "$modeDisplayName routes ready: ${routes.size} routes, origin: $routerOrigin")
+                        Log.d("RouteManager", "$modeDisplayName routes ready (${if(isOnline) "online" else "offline"}): ${routes.size} routes, origin: $routerOrigin")
 
                         // 성공적으로 받은 경로를 캐시에 저장
                         cacheRoutes(routes)
@@ -185,12 +187,19 @@ class RouteManager(
 
                         // 사용자 액션일 때만 성공 메시지 표시
                         if (isUserInitiatedRequest) {
-                            val message = languageManager.getLocalizedString(
-                                "$modeDisplayName 경로가 설정되었습니다",
-                                "$modeDisplayName route has been set"
-                            )
+                            val message = if (isOnline) {
+                                languageManager.getLocalizedString(
+                                    "$modeDisplayName 경로가 설정되었습니다",
+                                    "$modeDisplayName route has been set"
+                                )
+                            } else {
+                                languageManager.getLocalizedString(
+                                    "오프라인 $modeDisplayName 경로가 설정되었습니다",
+                                    "Offline $modeDisplayName route has been set"
+                                )
+                            }
                             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            isUserInitiatedRequest = false // 플래그 리셋
+                            isUserInitiatedRequest = false
                         }
 
                         // 리스너에게 경로 준비 알림

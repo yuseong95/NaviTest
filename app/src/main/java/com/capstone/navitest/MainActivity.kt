@@ -30,6 +30,7 @@ import com.mapbox.common.MapboxOptions
 import com.mapbox.common.TileStore
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.MapboxMapsOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.options.RoutingTilesOptions
 import com.mapbox.navigation.core.MapboxNavigation
@@ -120,13 +121,17 @@ class MainActivity : ComponentActivity() {
         // ViewModel 상태 관찰 설정
         observeViewModelState()
 
-        // Mapbox 액세스 토큰 설정
+        // 1단계: Mapbox 액세스 토큰 설정
         MapboxOptions.accessToken = getString(R.string.mapbox_access_token)
 
-        // MapboxNavigationApp 설정
+        // 2단계: TileStore 글로벌 설정 (MapboxNavigationApp.setup() 전에 필수!)
+        val globalTileStore = MapInitializer.setupGlobalTileStore(this)
+        Log.d("MainActivity", "Global TileStore configured before MapboxNavigationApp setup")
+
+        // 3단계: MapboxNavigationApp 설정 (TileStore 설정 후)
         setupMapboxNavigation()
 
-        // 기본 매니저 초기화
+        // 4단계: 기본 매니저 초기화
         initializeManagers()
 
         // 검색 버튼 초기화
@@ -254,7 +259,7 @@ class MainActivity : ComponentActivity() {
             .build()
 
         MapboxNavigationApp.setup(navOptions)
-        Log.d("MainActivity", "MapboxNavigationApp setup completed")
+        Log.d("MainActivity", "MapboxNavigationApp setup completed with pre-configured TileStore")
     }
 
     private fun initializeManagers() {
@@ -262,7 +267,9 @@ class MainActivity : ComponentActivity() {
 
         languageManager = LanguageManager(this)
         permissionHelper = PermissionHelper(this, languageManager)
+
         mapInitializer = MapInitializer(this, languageManager)
+
         offlineTileManager = OfflineTileManager(
             this,
             mapInitializer.getTileStore(),
