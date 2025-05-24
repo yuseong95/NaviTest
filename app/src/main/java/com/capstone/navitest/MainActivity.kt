@@ -136,9 +136,6 @@ class MainActivity : ComponentActivity() {
         // UI 컴포넌트 초기화
         initializeUIComponents()
 
-        // ViewModel 상태 관찰 설정
-        observeViewModelState()
-
         // 1단계: Mapbox 액세스 토큰 설정
         MapboxOptions.accessToken = getString(R.string.mapbox_access_token)
 
@@ -149,10 +146,13 @@ class MainActivity : ComponentActivity() {
         // 3단계: MapboxNavigationApp 설정
         setupMapboxNavigation()
 
-        // 4단계: 기본 매니저 초기화
+        // 4단계: 기본 매니저 초기화 (여기서 languageManager 초기화됨)
         initializeManagers()
 
-        // 새로운 UI 이벤트 설정
+        // 5단계: ViewModel 상태 관찰 설정 (languageManager 초기화 후로 이동)
+        observeViewModelState()
+
+        // 6단계: 새로운 UI 이벤트 설정
         setupNewUIEvents()
 
         // 권한 확인 및 요청
@@ -445,6 +445,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updateNavigationUI(isNavigating: Boolean) {
+        if (!::languageManager.isInitialized) {
+            Log.w("MainActivity", "updateNavigationUI called before languageManager initialization")
+            return
+        }
+
         if (isNavigating) {
             // 내비게이션 시작시
             mainActionButton.text = languageManager.getLocalizedString("내비게이션 취소", "Cancel Navigation")
@@ -609,6 +614,24 @@ class MainActivity : ComponentActivity() {
             "Location permission is required. Please enable it in settings to use the app."
         )
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    fun setSearchButtonEnabled(enabled: Boolean) {
+        // 새로운 UI에서는 검색 컨테이너의 활성화/비활성화를 제어
+        if (::searchContainer.isInitialized) {
+            searchContainer.isEnabled = enabled
+            searchContainer.alpha = if (enabled) 1.0f else 0.5f
+
+            // 검색 힌트 텍스트도 업데이트
+            val searchHint = findViewById<TextView>(R.id.searchHint)
+            if (enabled) {
+                searchHint.text = languageManager.getLocalizedString("목적지 검색", "Search destination")
+                searchHint.setTextColor(getColor(R.color.hint_text_color))
+            } else {
+                searchHint.text = languageManager.getLocalizedString("오프라인 모드", "Offline mode")
+                searchHint.setTextColor(getColor(R.color.offline_status))
+            }
+        }
     }
 
     override fun onDestroy() {
