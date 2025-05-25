@@ -749,24 +749,60 @@ class MainActivity : ComponentActivity() {
 
         Log.d("MainActivity", "updateNavigationUI called - isNavigating: $isNavigating")
 
-        if (isNavigating) {
-            // ... 기존 UI 업데이트 코드 ...
+        runOnUiThread {
+            if (isNavigating) {
+                // 내비게이션 시작 시 UI 숨기기
+                Log.d("MainActivity", "Navigation started - hiding UI controls")
 
-            // 내비게이션 시작 토스트 (Constants 사용)
-            showDebouncedToast(languageManager.getLocalizedString(
-                "내비게이션이 시작되었습니다",
-                "Navigation started"
-            ))
+                // 1. 메인 액션 버튼 숨기기
+                mainActionButton.visibility = View.GONE
 
-            Log.d("MainActivity", "Navigation started - hiding controls and route info panel")
-        } else {
-            // ... 기존 UI 업데이트 코드 ...
+                // 2. 하단 내비게이션 바 숨기기
+                bottomNavigationContainer.visibility = View.GONE
 
-            // 내비게이션 종료 토스트 (Constants 사용)
-            showDebouncedToast(languageManager.getLocalizedString(
-                "내비게이션이 종료되었습니다",
-                "Navigation ended"
-            ))
+                // 3. 상단 경로 정보 패널 숨기기 (중복 정보 제거)
+                routeInfoPanel.visibility = View.GONE
+
+                // 4. 검색 컨테이너도 숨기기 (내비게이션 중에는 검색 비활성화)
+                searchContainer.visibility = View.GONE
+
+                // 내비게이션 시작 토스트
+                showDebouncedToast(languageManager.getLocalizedString(
+                    "내비게이션이 시작되었습니다",
+                    "Navigation started"
+                ))
+
+                Log.d("MainActivity", "Navigation started - all UI controls hidden")
+
+            } else {
+                // 내비게이션 종료 시 UI 복원
+                Log.d("MainActivity", "Navigation ended - restoring UI controls")
+
+                // 1. 검색 컨테이너 다시 표시
+                searchContainer.visibility = View.VISIBLE
+
+                // 2. 하단 내비게이션 바 다시 표시
+                bottomNavigationContainer.visibility = View.VISIBLE
+
+                // 3. 홈 탭으로 돌아가기 (다른 탭이 열려있을 수 있으므로)
+                selectTab(NavigationTab.HOME)
+
+                // 4. 메인 액션 버튼은 목적지가 있을 때만 표시
+                // (updateMainActionButtonVisibility에서 처리됨)
+                updateMainActionButtonVisibility()
+
+                // 5. 경로 정보 패널은 숨김 상태로 유지
+                // (새로운 경로 요청 시 updateRouteInfo에서 다시 표시됨)
+                routeInfoPanel.visibility = View.GONE
+
+                // 내비게이션 종료 토스트
+                showDebouncedToast(languageManager.getLocalizedString(
+                    "내비게이션이 종료되었습니다",
+                    "Navigation ended"
+                ))
+
+                Log.d("MainActivity", "Navigation ended - UI controls restored")
+            }
         }
     }
 
