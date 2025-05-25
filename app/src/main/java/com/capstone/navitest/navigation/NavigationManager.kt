@@ -222,14 +222,18 @@ class NavigationManager(
             mapView.gestures.addOnMapClickListener { point ->
                 // 네비게이션 중이 아닐 때만 목적지 설정 가능
                 if (!isNavigating && ::mapboxNavigation.isInitialized) {
+                    Log.d("NavigationManager", "Map clicked - setting new destination")
+
                     // 마커 추가 및 목적지 설정
                     val destination = markerManager.addMarker(point)
                     routeManager.setDestination(destination)
 
-                    // 즉시 MainActivity에 목적지 설정 알림
+                    // 목적지 설정 알림 (한 번만)
                     notifyDestinationSet()
+
+                    return@addOnMapClickListener true
                 }
-                true
+                false
             }
 
             Log.d("NavigationManager", "Map click listener set up")
@@ -601,15 +605,18 @@ class NavigationManager(
             if (::routeManager.isInitialized) {
                 routeManager.setOrigin(location)
 
-                // 목적지가 이미 설정되어 있다면 MainActivity에 알림
+                // 목적지가 처음 설정되었을 때만 알림 (중복 방지)
                 if (routeManager.getDestination() != null) {
-                    Log.d("NavigationManager", "Both origin and destination available")
-                    notifyDestinationSet()
-                }
+                    val viewModel = searchButtonViewModel
+                    if (viewModel?.hasDestination?.value != true) {  // 상태가 false인 경우만
+                        Log.d("NavigationManager", "First time both origin and destination available")
+                        notifyDestinationSet()
+                    }
 
-                // 네비게이션 중이고 목적지가 설정된 경우 주기적으로 경로 업데이트
-                if (isNavigating && routeManager.getDestination() != null) {
-                    routeManager.requestRoute()
+                    // 네비게이션 중이고 목적지가 설정된 경우만 주기적으로 경로 업데이트
+                    if (isNavigating && routeManager.getDestination() != null) {
+                        routeManager.requestRoute()
+                    }
                 }
             } else {
                 Log.w("NavigationManager", "RouteManager not initialized in onLocationChanged")
@@ -622,15 +629,21 @@ class NavigationManager(
     // 목적지 설정 알림
     private fun notifyDestinationSet() {
         try {
-            // ViewModel 상태 업데이트
-            searchButtonViewModel?.setHasDestination(true)
+            // ViewModel 상태 확인 후 업데이트
+            val viewModel = searchButtonViewModel
+            if (viewModel?.hasDestination?.value != true) {
+                Log.d("NavigationManager", "Setting destination state to true")
+                viewModel?.setHasDestination(true)
 
-            // MainActivity에 직접 알림
-            (context as? MainActivity)?.runOnUiThread {
-                (context as MainActivity).onDestinationSet()
+                // MainActivity에 직접 알림
+                (context as? MainActivity)?.runOnUiThread {
+                    (context as MainActivity).onDestinationSet()
+                }
+
+                Log.d("NavigationManager", "Destination set notification sent to MainActivity")
+            } else {
+                Log.d("NavigationManager", "Destination already set - skipping notification")
             }
-
-            Log.d("NavigationManager", "Destination set notification sent to MainActivity")
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error notifying destination set", e)
         }

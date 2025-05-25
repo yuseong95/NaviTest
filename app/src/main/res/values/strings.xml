@@ -63,7 +63,7 @@
 
     <!-- 내비게이션 종료 확인 -->
     <string name="navigation_exit_title">내비게이션 종료</string>
-    <string name="navigation_exit_description">내비게이션 안내를 종료하시겠습니까?\n시간이 지나면 자동으로 내비게이션이 계속됩니다.</string>
+    <string name="navigation_exit_description">내비게이션 안내를 종료하시겠습니까?\n시간이 지나면 자동으로 내비게이션이 종료됩니다.</string>
     <string name="continue_navigation">계속하기</string>
     <string name="exit_navigation">종료</string>
     <string name="auto_exit_in">자동 종료까지</string>

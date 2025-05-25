@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.animation.DecelerateInterpolator
+import android.view.ViewTreeObserver
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -221,6 +222,9 @@ class MainActivity : ComponentActivity() {
         settingsPanel = findViewById(R.id.settingsPanel)
         mainActionButton = findViewById(R.id.mainActionButton)
 
+        // 새로 추가된 버튼 컨테이너 참조
+        val buttonContainer = findViewById<LinearLayout>(R.id.buttonContainer)
+
         // 경로 정보 관련 컴포넌트들
         routeInfoPanel = findViewById(R.id.routeInfoPanel)
         routeDistanceText = findViewById(R.id.routeDistanceText)
@@ -242,6 +246,8 @@ class MainActivity : ComponentActivity() {
 
         // 초기 상태 설정
         mainActionButton.visibility = View.GONE
+        buttonContainer.visibility = View.VISIBLE  // 컨테이너는 항상 보이도록
+        bottomNavigationContainer.visibility = View.VISIBLE
         searchOverlay.visibility = View.GONE
         navigationModePanel.visibility = View.GONE
         settingsPanel.visibility = View.GONE
@@ -253,6 +259,11 @@ class MainActivity : ComponentActivity() {
 
         // 기본 탭 선택
         selectTab(NavigationTab.HOME)
+
+        // 디버깅: 초기 레이아웃 정보
+        Log.d("MainActivity", "Initial UI state - bottomContainer: ${bottomNavigationContainer.visibility}")
+        Log.d("MainActivity", "buttonContainer: ${buttonContainer.visibility}")
+        Log.d("MainActivity", "mainButton: ${mainActionButton.visibility}")
     }
 
     // 뒤로가기 처리 로직
@@ -405,7 +416,13 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onFinish() {
-                Log.d("MainActivity", "Exit timer finished - auto continuing navigation")
+                Log.d("MainActivity", "Exit timer finished - auto canceling navigation")
+
+                // 내비게이션 자동 종료
+                if (::navigationManager.isInitialized) {
+                    navigationManager.cancelNavigation()
+                }
+
                 hideNavigationExitPanel()
                 backPressedCount = 0
             }
@@ -698,13 +715,22 @@ class MainActivity : ComponentActivity() {
     private fun updateMainActionButtonVisibility() {
         Log.d("MainActivity", "updateMainActionButtonVisibility - hasDestination: $hasDestinationSet, isNavigating: $isNavigationActive")
 
-        if (!isNavigationActive && hasDestinationSet) {
-            mainActionButton.visibility = View.VISIBLE
-            mainActionButton.text = languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
-            Log.d("MainActivity", "Showing start button - destination available")
-        } else if (!isNavigationActive) {
-            mainActionButton.visibility = View.GONE
-            Log.d("MainActivity", "Hiding start button - no destination")
+        runOnUiThread {
+            try {
+                if (!isNavigationActive && hasDestinationSet) {
+                    bottomNavigationContainer.visibility = View.VISIBLE
+                    mainActionButton.visibility = View.VISIBLE
+                    mainActionButton.text = languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
+                    mainActionButton.isEnabled = true
+
+                    Log.d("MainActivity", "✅ Showing start button - destination available")
+                } else if (!isNavigationActive) {
+                    mainActionButton.visibility = View.GONE
+                    Log.d("MainActivity", "❌ Hiding start button - no destination")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error updating main action button visibility", e)
+            }
         }
     }
 
@@ -905,15 +931,13 @@ class MainActivity : ComponentActivity() {
 
         mapInitializer.setMapClickListener { point ->
             if (::navigationManager.isInitialized && !navigationManager.isNavigating()) {
-                navigationManager.setDestination(point)
+                Log.d("MainActivity", "=== MAP CLICKED ===")
 
-                // 직접적인 상태 업데이트
+                navigationManager.setDestination(point)
                 hasDestinationSet = true
                 searchButtonViewModel.setHasDestination(true)
 
-                // 즉시 버튼 표시
                 runOnUiThread {
-                    Log.d("MainActivity", "Direct button update from map click")
                     updateMainActionButtonVisibility()
                 }
 
