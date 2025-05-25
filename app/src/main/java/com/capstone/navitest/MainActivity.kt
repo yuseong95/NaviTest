@@ -173,6 +173,23 @@ class MainActivity : ComponentActivity() {
         if (::navigationManager.isInitialized) {
             initializeSearchComponents()
         }
+
+        // 버튼 상태 디버깅
+        mainActionButton = findViewById(R.id.mainActionButton)
+        Log.d("MainActivity", "mainActionButton found: ${::mainActionButton.isInitialized}")
+        Log.d("MainActivity", "mainActionButton initial visibility: ${mainActionButton.visibility}")
+
+        // 버튼 클릭 리스너에 로그 추가
+        mainActionButton.setOnClickListener {
+            Log.d("MainActivity", "mainActionButton clicked")
+            if (::navigationManager.isInitialized) {
+                if (navigationManager.isNavigating()) {
+                    navigationManager.cancelNavigation()
+                } else {
+                    navigationManager.startNavigation()
+                }
+            }
+        }
     }
 
     private fun initializeUIComponents() {
@@ -307,9 +324,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupNavigationModeOptions() {
-        val drivingOption = findViewById<RelativeLayout>(R.id.drivingModeOption)
-        val walkingOption = findViewById<RelativeLayout>(R.id.walkingModeOption)
-        val cyclingOption = findViewById<RelativeLayout>(R.id.cyclingModeOption)
+        val drivingOption = findViewById<LinearLayout>(R.id.drivingModeOption)
+        val walkingOption = findViewById<LinearLayout>(R.id.walkingModeOption)
+        val cyclingOption = findViewById<LinearLayout>(R.id.cyclingModeOption)
 
         drivingOption.setOnClickListener {
             changeNavigationMode(Constants.NAVIGATION_MODE_DRIVING)
@@ -419,10 +436,11 @@ class MainActivity : ComponentActivity() {
         val searchHint = findViewById<TextView>(R.id.searchHint)
         searchHint.text = languageManager.getLocalizedString("목적지 검색", "Search destination")
 
+        // 더 짧은 텍스트 사용
         mainActionButton.text = if (::navigationManager.isInitialized && navigationManager.isNavigating()) {
-            languageManager.getLocalizedString("내비게이션 취소", "Cancel Navigation")
+            languageManager.getLocalizedString("취소", "Cancel")
         } else {
-            languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
+            languageManager.getLocalizedString("시작", "Start")
         }
     }
 
@@ -520,6 +538,17 @@ class MainActivity : ComponentActivity() {
                 updateNavigationUI(isActive)
             }
         }
+
+        // 목적지 상태 관찰
+        lifecycleScope.launch {
+            searchButtonViewModel.hasDestination.collectLatest { hasDestination ->
+                Log.d("MainActivity", "Destination state changed: $hasDestination")
+                if (!searchButtonViewModel.navigationActive.value) {
+                    // 내비게이션이 활성화되지 않은 상태에서만 버튼 가시성 업데이트
+                    updateNavigationUI(false)
+                }
+            }
+        }
     }
 
     private fun updateNavigationUI(isNavigating: Boolean) {
@@ -545,9 +574,10 @@ class MainActivity : ComponentActivity() {
             // 하단 네비게이션 바 다시 표시
             bottomNavigationContainer.visibility = View.VISIBLE
 
-            // 목적지가 설정되어 있거나 경로가 있으면 시작 버튼 표시
-            val hasDestination = ::navigationManager.isInitialized &&
-                    navigationManager.getRouteManager().hasValidRoute()
+            // hasDestination 체크 방식 개선
+            val hasDestination = checkIfDestinationExists()
+
+            Log.d("MainActivity", "updateNavigationUI - isNavigating: $isNavigating, hasDestination: $hasDestination")
 
             if (hasDestination) {
                 mainActionButton.visibility = View.VISIBLE
@@ -559,7 +589,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // 기존 메서드들...
+    // 목적지 존재 여부를 체크하는 헬퍼 메서드
+    private fun checkIfDestinationExists(): Boolean {
+        return try {
+            if (!::navigationManager.isInitialized) {
+                Log.d("MainActivity", "NavigationManager not initialized")
+                false
+            } else {
+                val hasValidRoute = navigationManager.getRouteManager().hasValidRoute()
+                val hasDestination = navigationManager.getRouteManager().getDestination() != null
+                Log.d("MainActivity", "hasValidRoute: $hasValidRoute, hasDestination: $hasDestination")
+                hasValidRoute || hasDestination
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error checking destination", e)
+            false
+        }
+    }
+
     private fun initializeSearchComponents() {
         try {
             searchManager = SearchManager(this)
@@ -576,26 +623,56 @@ class MainActivity : ComponentActivity() {
     }
 
     fun setDestinationFromSearch(point: Point) {
-        Log.d("MainActivity", "Setting destination from search: ${point.longitude()}, ${point.latitude()}")
+        Log.d("MainActivity", "setDestinationFromSearch called: ${point.longitude()}, ${point.latitude()}")
 
         if (::navigationManager.isInitialized) {
             navigationManager.setDestination(point)
 
-            // 명시적으로 버튼 표시
-            mainActionButton.visibility = View.VISIBLE
-            updateUITexts() // 버튼 텍스트도 업데이트
+            // 강제로 버튼 표시
+            runOnUiThread {
+                Log.d("MainActivity", "Forcing mainActionButton to show with enhanced method")
 
-            Log.d("MainActivity", "Destination set through NavigationManager, button shown")
-        } else {
-            Log.e("MainActivity", "NavigationManager not initialized, cannot set destination")
-            val message = languageManager.getLocalizedString(
-                "내비게이션이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.",
-                "Navigation is not ready yet. Please try again in a moment."
-            )
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                // 버튼 완전히 다시 설정
+                mainActionButton.visibility = View.VISIBLE
+                mainActionButton.text = languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
+                mainActionButton.isEnabled = true
+                mainActionButton.alpha = 1.0f
+
+                // 레이아웃 파라미터 강제 재설정
+                val layoutParams = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.MATCH_PARENT,
+                    resources.getDimensionPixelSize(R.dimen.main_action_button_height)
+                )
+                layoutParams.addRule(RelativeLayout.ABOVE, R.id.bottomNavigationContainer)
+                layoutParams.setMargins(
+                    resources.getDimensionPixelSize(R.dimen.margin_large),
+                    0,
+                    resources.getDimensionPixelSize(R.dimen.margin_large),
+                    resources.getDimensionPixelSize(R.dimen.margin_small)
+                )
+                mainActionButton.layoutParams = layoutParams
+
+                // 뷰 트리 강제 업데이트
+                mainActionButton.requestLayout()
+                mainActionButton.invalidate()
+
+                Log.d("MainActivity", "Button visibility: ${mainActionButton.visibility}, enabled: ${mainActionButton.isEnabled}")
+            }
+
+            Log.d("MainActivity", "Destination set through NavigationManager")
         }
     }
+    // 목적지 설정 완료 콜백
+    fun onDestinationSet() {
+        Log.d("MainActivity", "onDestinationSet called")
+        mainActionButton.visibility = View.VISIBLE
+        updateUITexts()
 
+        // 선택적으로 토스트 메시지 표시
+        Toast.makeText(this,
+            languageManager.getLocalizedString("목적지가 설정되었습니다", "Destination set"),
+            Toast.LENGTH_SHORT).show()
+    }
 
     fun setNavigationActive(active: Boolean) {
         searchButtonViewModel.setNavigationActive(active)
@@ -689,9 +766,14 @@ class MainActivity : ComponentActivity() {
             if (::navigationManager.isInitialized && !navigationManager.isNavigating()) {
                 navigationManager.setDestination(point)
 
-                // 명시적으로 버튼 표시
-                mainActionButton.visibility = View.VISIBLE
-                updateUITexts()
+                // 즉시 버튼 표시
+                runOnUiThread {
+                    Log.d("MainActivity", "Map click - Forcing mainActionButton to show")
+                    mainActionButton.visibility = View.VISIBLE
+                    mainActionButton.text = languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
+                    mainActionButton.bringToFront()
+                    Log.d("MainActivity", "Map click - Button visibility set to VISIBLE")
+                }
 
                 return@setMapClickListener true
             }

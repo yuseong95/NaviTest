@@ -44,4 +44,12 @@
     <dimen name="elevation_medium">8dp</dimen>
     <dimen name="elevation_large">16dp</dimen>
     <dimen name="elevation_xlarge">24dp</dimen>
+
+    <!-- 버튼 관련 크기 -->
+    <dimen name="main_action_button_height">64dp</dimen>
+    <dimen name="main_action_button_text_size">18sp</dimen>
+
+    <!-- 네비게이션 바 관련 크기 -->
+    <dimen name="bottom_nav_item_text_size">11sp</dimen>
+    <dimen name="bottom_nav_margin_bottom">16dp</dimen>
 </resources>

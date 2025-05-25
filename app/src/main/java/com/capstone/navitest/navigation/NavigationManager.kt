@@ -582,11 +582,16 @@ class NavigationManager(
                 // 경로 관리자에 목적지 설정
                 routeManager.setDestination(point)
 
-                // NavigationUI를 통해 시작 버튼 활성화
-                navigationUI.setStartButtonEnabled(true)
-
-                // ViewModel에 목적지 설정 상태 알림
+                // ViewModel 상태 먼저 업데이트
                 searchButtonViewModel?.setHasDestination(true)
+
+                // MainActivity에 직접 알림 추가
+                (context as? MainActivity)?.runOnUiThread {
+                    (context as MainActivity).onDestinationSet()
+                }
+
+                // NavigationUI를 통해 시작 버튼 활성화는 제거 (중복 제어 방지)
+                // navigationUI.setStartButtonEnabled(true)
 
                 // 오프라인 상태에서 목적지 설정 시 안내 메시지
                 val isOffline = !isNetworkAvailable()
@@ -613,7 +618,6 @@ class NavigationManager(
 
             // 오류 발생 시 UI 상태도 초기화
             searchButtonViewModel?.setHasDestination(false)
-            navigationUI.setStartButtonEnabled(false)
         }
     }
 

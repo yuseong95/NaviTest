@@ -163,6 +163,23 @@
 
     </LinearLayout>
 
+    <!-- 메인 액션 버튼 (시작/취소) -->
+    <Button
+        android:id="@+id/mainActionButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_above="@id/bottomNavigation"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:text="@string/start_navigation"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:background="@drawable/primary_button_background"
+        android:elevation="8dp"
+        android:visibility="gone" />
+
     <!-- 하단 네비게이션 바 -->
     <RelativeLayout
         android:id="@+id/bottomNavigationContainer"
@@ -170,18 +187,6 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:padding="16dp">
-
-        <!-- 메인 액션 버튼 (시작/취소) -->
-        <Button
-            android:id="@+id/mainActionButton"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_above="@id/bottomNavigation"
-            android:layout_marginBottom="8dp"
-            android:text="@string/start_navigation"
-            android:textSize="16sp"
-            android:visibility="gone"
-            android:background="@drawable/primary_button_background" />
 
         <!-- 하단 네비게이션 바 -->
         <LinearLayout

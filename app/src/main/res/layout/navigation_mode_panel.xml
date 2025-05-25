@@ -30,8 +30,10 @@
         android:layout_marginBottom="24dp"
         android:text="@string/navigation_mode_title"
         android:textColor="@color/panel_title_color"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
 
     <!-- 내비게이션 모드 옵션들 -->
     <LinearLayout
@@ -40,31 +42,32 @@
         android:orientation="vertical">
 
         <!-- 자동차 모드 -->
-        <RelativeLayout
+        <LinearLayout
             android:id="@+id/drivingModeOption"
             android:layout_width="match_parent"
-            android:layout_height="72dp"
+            android:layout_height="wrap_content"
+            android:minHeight="88dp"
             android:background="@drawable/mode_option_background"
             android:clickable="true"
             android:focusable="true"
-            android:layout_marginBottom="8dp"
-            android:padding="16dp">
+            android:layout_marginBottom="12dp"
+            android:padding="20dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <ImageView
                 android:id="@+id/drivingIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_car"
                 app:tint="@color/mode_icon_color" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_marginStart="16dp"
-                android:layout_toEndOf="@id/drivingIcon"
+                android:layout_weight="1"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -72,56 +75,57 @@
                     android:layout_height="wrap_content"
                     android:text="@string/driving_mode"
                     android:textColor="@color/mode_title_color"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/driving_mode_desc"
                     android:textColor="@color/mode_desc_color"
-                    android:textSize="12sp" />
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="2dp" />
 
             </LinearLayout>
 
             <ImageView
                 android:id="@+id/drivingCheck"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
                 android:src="@drawable/ic_check_circle"
                 app:tint="@color/accent_color"
                 android:visibility="visible" />
 
-        </RelativeLayout>
+        </LinearLayout>
 
         <!-- 도보 모드 -->
-        <RelativeLayout
+        <LinearLayout
             android:id="@+id/walkingModeOption"
             android:layout_width="match_parent"
-            android:layout_height="72dp"
+            android:layout_height="wrap_content"
+            android:minHeight="88dp"
             android:background="@drawable/mode_option_background"
             android:clickable="true"
             android:focusable="true"
-            android:layout_marginBottom="8dp"
-            android:padding="16dp">
+            android:layout_marginBottom="12dp"
+            android:padding="20dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <ImageView
                 android:id="@+id/walkingIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_walk"
                 app:tint="@color/mode_icon_color" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_marginStart="16dp"
-                android:layout_toEndOf="@id/walkingIcon"
+                android:layout_weight="1"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -129,55 +133,56 @@
                     android:layout_height="wrap_content"
                     android:text="@string/walking_mode"
                     android:textColor="@color/mode_title_color"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/walking_mode_desc"
                     android:textColor="@color/mode_desc_color"
-                    android:textSize="12sp" />
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="2dp" />
 
             </LinearLayout>
 
             <ImageView
                 android:id="@+id/walkingCheck"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
                 android:src="@drawable/ic_check_circle"
                 app:tint="@color/accent_color"
                 android:visibility="gone" />
 
-        </RelativeLayout>
+        </LinearLayout>
 
         <!-- 자전거 모드 -->
-        <RelativeLayout
+        <LinearLayout
             android:id="@+id/cyclingModeOption"
             android:layout_width="match_parent"
-            android:layout_height="72dp"
+            android:layout_height="wrap_content"
+            android:minHeight="88dp"
             android:background="@drawable/mode_option_background"
             android:clickable="true"
             android:focusable="true"
-            android:padding="16dp">
+            android:padding="20dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <ImageView
                 android:id="@+id/cyclingIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_bike"
                 app:tint="@color/mode_icon_color" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_marginStart="16dp"
-                android:layout_toEndOf="@id/cyclingIcon"
+                android:layout_weight="1"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -185,29 +190,29 @@
                     android:layout_height="wrap_content"
                     android:text="@string/cycling_mode"
                     android:textColor="@color/mode_title_color"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/cycling_mode_desc"
                     android:textColor="@color/mode_desc_color"
-                    android:textSize="12sp" />
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="2dp" />
 
             </LinearLayout>
 
             <ImageView
                 android:id="@+id/cyclingCheck"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
                 android:src="@drawable/ic_check_circle"
                 app:tint="@color/accent_color"
                 android:visibility="gone" />
 
-        </RelativeLayout>
+        </LinearLayout>
 
     </LinearLayout>
 
