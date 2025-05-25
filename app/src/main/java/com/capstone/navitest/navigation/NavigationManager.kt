@@ -86,6 +86,9 @@ class NavigationManager(
     // 카메라 초기화 추적
     private var hasInitializedCamera = false
 
+    private var lastToastMessage = ""
+    private var lastToastTime = 0L
+
     init {
         try {
             Log.d("NavigationManager", "Initializing navigation components")
@@ -654,32 +657,65 @@ class NavigationManager(
         return isNavigating
     }
 
+    private fun showDebouncedToast(message: String) {
+        val currentTime = System.currentTimeMillis()
+
+        // Constants에서 디바운싱 시간 가져오기
+        val debounceTime = when {
+            message.contains("오프라인") || message.contains("offline", true) ->
+                Constants.OFFLINE_TOAST_DEBOUNCE_TIME
+            message.contains("내비게이션") || message.contains("navigation", true) ->
+                Constants.NAVIGATION_TOAST_DEBOUNCE_TIME
+            else -> Constants.TOAST_DEBOUNCE_TIME
+        }
+
+        // 같은 메시지이고 지정된 시간 이내라면 토스트 표시 안 함
+        if (message == lastToastMessage && currentTime - lastToastTime < debounceTime) {
+            return
+        }
+
+        lastToastMessage = message
+        lastToastTime = currentTime
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
     // 목적지 설정 메서드
     fun setDestination(point: Point) {
         try {
             Log.d("NavigationManager", "Setting destination: ${point.longitude()}, ${point.latitude()}")
 
             if (::markerManager.isInitialized && ::routeManager.isInitialized) {
-                // 기존 마커 및 경로 삭제
+                // 기존 마커 및 경로 삭제 (중요: 순서 주의)
+                Log.d("NavigationManager", "Clearing existing markers and routes")
                 markerManager.clearMarkers()
 
+                // 기존 경로도 명시적으로 클리어
+                if (::mapboxNavigation.isInitialized) {
+                    mapboxNavigation.setNavigationRoutes(emptyList())
+                }
+
+                // 경로 라인도 클리어
+                clearAllRouteLines()
+
                 // 새 마커 추가
+                Log.d("NavigationManager", "Adding new marker")
                 markerManager.addMarker(point)
 
-                // 경로 관리자에 목적지 설정
+                // 경로 관리자에 목적지 설정 (이때 자동으로 새 경로 요청됨)
+                Log.d("NavigationManager", "Setting new destination in RouteManager")
                 routeManager.setDestination(point)
 
                 // 즉시 목적지 설정 알림
                 notifyDestinationSet()
 
-                // 오프라인 상태에서 목적지 설정 시 안내 메시지
+                // 오프라인 상태에서 목적지 설정 시 안내 메시지 (토스트 개선)
                 val isOffline = !isNetworkAvailable()
                 if (isOffline) {
                     val message = languageManager.getLocalizedString(
                         "오프라인 모드: 다운로드된 지역 내에서 내비게이션이 가능합니다",
                         "Offline mode: Navigation available within downloaded areas"
                     )
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    showDebouncedToast(message)
                 }
 
                 Log.d("NavigationManager", "Destination set successfully (${if(isOffline) "offline" else "online"} mode)")

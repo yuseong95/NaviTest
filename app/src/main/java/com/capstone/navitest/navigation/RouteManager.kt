@@ -34,6 +34,10 @@ class RouteManager(
     // 사용자 액션으로 인한 요청인지 구분하는 플래그
     private var isUserInitiatedRequest = false
 
+    // 토스트 메시지 중복 방지를 위한 변수들 추가
+    private var lastToastMessage = ""
+    private var lastToastTime = 0L
+
     // 경로 변경 리스너 인터페이스
     interface OnRouteChangeListener {
         fun onRouteReady(routes: List<NavigationRoute>)
@@ -55,16 +59,46 @@ class RouteManager(
     fun setDestination(destination: Point) {
         Log.d("RouteManager", "Setting destination: ${destination.longitude()}, ${destination.latitude()}")
 
-        currentDestination = destination
-        isUserInitiatedRequest = true // 사용자가 목적지를 설정한 경우
+        // 목적지가 변경되었는지 확인
+        val destinationChanged = currentDestination?.let { current ->
+            val distance = calculateDistance(
+                current.latitude(), current.longitude(),
+                destination.latitude(), destination.longitude()
+            )
+            distance > Constants.DESTINATION_CHANGE_THRESHOLD
+        } ?: true
 
-        // 현재 위치가 있는지 확인하고 경로 요청
-        if (currentOrigin != null) {
-            Log.d("RouteManager", "Origin available, requesting route")
-            requestRoute()
+        if (destinationChanged) {
+            Log.d("RouteManager", "Destination changed, clearing cache and requesting new route")
+
+            // 목적지가 변경되었으므로 캐시 클리어
+            clearCachedRoutes()
+
+            currentDestination = destination
+            isUserInitiatedRequest = true // 사용자가 목적지를 설정한 경우
+
+            // 현재 위치가 있는지 확인하고 경로 요청
+            if (currentOrigin != null) {
+                Log.d("RouteManager", "Origin available, requesting route for new destination")
+                requestRoute()
+            } else {
+                Log.d("RouteManager", "Origin not available yet, waiting for location")
+            }
         } else {
-            Log.d("RouteManager", "Origin not available yet, waiting for location")
+            Log.d("RouteManager", "Destination unchanged, keeping existing route")
         }
+    }
+
+    // 거리 계산 함수 추가
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val earthRadius = 6371.0 // 지구 반지름 (km)
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return earthRadius * c
     }
 
     fun setRouteChangeListener(listener: OnRouteChangeListener) {
@@ -89,13 +123,14 @@ class RouteManager(
         if (!isNetworkAvailable) {
             Log.d("RouteManager", "Offline mode detected, attempting offline route calculation")
 
-            // 오프라인 상태에서 캐시된 경로가 있으면 사용
+            // 오프라인 상태에서 캐시된 경로가 있으면 사용 (토스트 개선)
             if (useCachedRoutesIfAvailable()) {
-                val message = languageManager.getLocalizedString(
-                    "오프라인 모드: 캐시된 경로 사용",
-                    "Offline mode: Using cached route"
+                showDebouncedToast(
+                    languageManager.getLocalizedString(
+                        "오프라인 모드: 캐시된 경로 사용",
+                        "Offline mode: Using cached route"
+                    )
                 )
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 return
             }
 
@@ -105,6 +140,27 @@ class RouteManager(
 
         // 3. 경로 요청 (온라인/오프라인 모두 동일하게 시도)
         performRouteRequest(origin, destination, isNetworkAvailable)
+    }
+
+    // 토스트 메시지 중복 방지 함수 추가
+    private fun showDebouncedToast(message: String) {
+        val currentTime = System.currentTimeMillis()
+
+        // Constants에서 적절한 디바운싱 시간 선택
+        val debounceTime = when {
+            message.contains("오프라인") || message.contains("offline", true) ->
+                Constants.OFFLINE_TOAST_DEBOUNCE_TIME
+            else -> Constants.TOAST_DEBOUNCE_TIME
+        }
+
+        // 같은 메시지이고 지정된 시간 이내라면 토스트 표시 안 함
+        if (message == lastToastMessage && currentTime - lastToastTime < debounceTime) {
+            return
+        }
+
+        lastToastMessage = message
+        lastToastTime = currentTime
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     // 자동 업데이트용 경로 요청 메서드 추가
@@ -185,7 +241,7 @@ class RouteManager(
                         // 경로 설정
                         mapboxNavigation.setNavigationRoutes(routes)
 
-                        // 사용자 액션일 때만 성공 메시지 표시
+                        // 사용자 액션일 때만 성공 메시지 표시 (토스트 개선)
                         if (isUserInitiatedRequest) {
                             val message = if (isOnline) {
                                 languageManager.getLocalizedString(
@@ -198,7 +254,7 @@ class RouteManager(
                                     "Offline $modeDisplayName route has been set"
                                 )
                             }
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            showDebouncedToast(message)
                             isUserInitiatedRequest = false
                         }
 
@@ -225,6 +281,12 @@ class RouteManager(
         Log.d("RouteManager", "Routes cached: ${routes.size}")
     }
 
+    // 캐시 클리어 함수 추가
+    private fun clearCachedRoutes() {
+        cachedRoutes = null
+        Log.d("RouteManager", "Route cache cleared")
+    }
+
     // 캐시된 경로 사용
     private fun useCachedRoutesIfAvailable(): Boolean {
         cachedRoutes?.let { routes ->
@@ -242,7 +304,7 @@ class RouteManager(
         mapboxNavigation.setNavigationRoutes(emptyList())
         currentDestination = null
         // 경로 클리어 시 캐시도 클리어
-        cachedRoutes = null
+        clearCachedRoutes()
     }
 
     fun hasValidRoute(): Boolean {
@@ -262,6 +324,9 @@ class RouteManager(
     fun changeNavigationMode(newMode: String) {
         if (languageManager.changeNavigationMode(newMode)) {
             Log.d("RouteManager", "Navigation mode changed to: $newMode")
+
+            // 내비게이션 모드 변경 시 캐시 클리어 (다른 모드의 경로이므로)
+            clearCachedRoutes()
 
             // 현재 경로가 있다면 새로운 모드로 다시 요청
             if (hasValidRoute()) {

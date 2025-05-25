@@ -21,4 +21,13 @@ object Constants {
 
     // 기본 내비게이션 모드
     const val DEFAULT_NAVIGATION_MODE = NAVIGATION_MODE_DRIVING
+
+    // 토스트 메시지 디바운싱 관련 상수 추가
+    const val TOAST_DEBOUNCE_TIME = 3000L // 3초 - 일반 토스트용
+    const val OFFLINE_TOAST_DEBOUNCE_TIME = 5000L // 5초 - 오프라인 관련 토스트용
+    const val NAVIGATION_TOAST_DEBOUNCE_TIME = 2000L // 2초 - 내비게이션 상태 변경 토스트용
+
+    // 위치 정확도 관련 상수
+    const val LOCATION_ACCURACY_THRESHOLD = 0.01 // 10m (위도/경도 차이)
+    const val DESTINATION_CHANGE_THRESHOLD = 0.01 // 목적지 변경 감지 임계값
 }

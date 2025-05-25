@@ -98,6 +98,10 @@ class MainActivity : ComponentActivity() {
     private var hasDestinationSet = false
     private var isNavigationActive = false
 
+    // 토스트 중복 방지를 위한 변수들 추가
+    private var lastToastMessage = ""
+    private var lastToastTime = 0L
+
     // 뒤로가기 콜백 추가
     private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
@@ -736,6 +740,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // 내비게이션 상태 업데이트 (토스트 개선)
     private fun updateNavigationUI(isNavigating: Boolean) {
         if (!::languageManager.isInitialized) {
             Log.w("MainActivity", "updateNavigationUI called before languageManager initialization")
@@ -745,31 +750,23 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "updateNavigationUI called - isNavigating: $isNavigating")
 
         if (isNavigating) {
-            // 내비게이션 시작시
-            mainActionButton.visibility = View.GONE // 내비게이션 중에는 버튼 숨김
+            // ... 기존 UI 업데이트 코드 ...
 
-            // 하단 네비게이션 바 숨기기 (내비게이션 중에는 모드 변경 불가)
-            bottomNavigationContainer.visibility = View.GONE
-
-            // 모든 패널 숨기기
-            hideAllPanels()
-
-            // 내비게이션 시작 시 상단 경로 정보 패널 숨기기 (중복 방지)
-            routeInfoPanel.visibility = View.GONE
+            // 내비게이션 시작 토스트 (Constants 사용)
+            showDebouncedToast(languageManager.getLocalizedString(
+                "내비게이션이 시작되었습니다",
+                "Navigation started"
+            ))
 
             Log.d("MainActivity", "Navigation started - hiding controls and route info panel")
         } else {
-            // 내비게이션 종료시
-            mainActionButton.text = languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
+            // ... 기존 UI 업데이트 코드 ...
 
-            // 하단 네비게이션 바 다시 표시
-            bottomNavigationContainer.visibility = View.VISIBLE
-
-            // 경로 정보 패널 숨기기
-            hideRouteInfo()
-
-            // 메인 액션 버튼 가시성 별도 업데이트
-            updateMainActionButtonVisibility()
+            // 내비게이션 종료 토스트 (Constants 사용)
+            showDebouncedToast(languageManager.getLocalizedString(
+                "내비게이션이 종료되었습니다",
+                "Navigation ended"
+            ))
         }
     }
 
@@ -819,35 +816,33 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "setDestinationFromSearch called: ${point.longitude()}, ${point.latitude()}")
 
         if (::navigationManager.isInitialized) {
+            // NavigationManager의 setDestination을 사용 (통합된 로직)
             navigationManager.setDestination(point)
 
-            // 직접적인 상태 업데이트
-            hasDestinationSet = true
-            searchButtonViewModel.setHasDestination(true)
+            // 직접적인 상태 업데이트는 NavigationManager에서 처리되므로 제거
+            // hasDestinationSet = true
+            // searchButtonViewModel.setHasDestination(true)
 
-            // 즉시 버튼 표시
+            // 토스트 메시지도 NavigationManager에서 처리되므로 제거하거나 간단히
             runOnUiThread {
-                Log.d("MainActivity", "Direct button update from search")
-                updateMainActionButtonVisibility()
-
-                // 토스트 메시지
-                Toast.makeText(this,
-                    languageManager.getLocalizedString("목적지가 설정되었습니다", "Destination set"),
-                    Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Destination set through search")
             }
 
-            Log.d("MainActivity", "Destination set through NavigationManager")
+            Log.d("MainActivity", "Destination set through NavigationManager from search")
         }
     }
 
     // 목적지 설정 완료 콜백 개선
     fun onDestinationSet() {
-        Log.d("MainActivity", "onDestinationSet called")
+        Log.d("MainActivity", "onDestinationSet called from NavigationManager")
+
+        // 내부 상태 업데이트
         hasDestinationSet = true
         searchButtonViewModel.setHasDestination(true)
 
         runOnUiThread {
             updateMainActionButtonVisibility()
+            Log.d("MainActivity", "UI updated after destination set")
         }
     }
 
@@ -944,13 +939,17 @@ class MainActivity : ComponentActivity() {
             if (::navigationManager.isInitialized && !navigationManager.isNavigating()) {
                 Log.d("MainActivity", "=== MAP CLICKED ===")
 
+                // NavigationManager의 setDestination 사용 (통합된 로직)
                 navigationManager.setDestination(point)
-                hasDestinationSet = true
-                searchButtonViewModel.setHasDestination(true)
 
-                runOnUiThread {
-                    updateMainActionButtonVisibility()
-                }
+                // 상태 업데이트는 NavigationManager에서 알림을 통해 처리됨
+                // hasDestinationSet = true
+                // searchButtonViewModel.setHasDestination(true)
+
+                // UI 업데이트도 NavigationManager의 알림을 통해 처리됨
+                // runOnUiThread {
+                //     updateMainActionButtonVisibility()
+                // }
 
                 return@setMapClickListener true
             }
@@ -1002,6 +1001,27 @@ class MainActivity : ComponentActivity() {
             // 내비게이션 중이면 카메라 뷰포트 다시 계산
             navigationManager.recenterCamera()
         }
+    }
+
+    // 토스트 메시지 중복 방지 함수 추가
+    private fun showDebouncedToast(message: String) {
+        val currentTime = System.currentTimeMillis()
+
+        // Constants에서 적절한 디바운싱 시간 선택
+        val debounceTime = when {
+            message.contains("내비게이션") || message.contains("navigation", true) ->
+                Constants.NAVIGATION_TOAST_DEBOUNCE_TIME
+            else -> Constants.TOAST_DEBOUNCE_TIME
+        }
+
+        // 같은 메시지이고 지정된 시간 이내라면 토스트 표시 안 함
+        if (message == lastToastMessage && currentTime - lastToastTime < debounceTime) {
+            return
+        }
+
+        lastToastMessage = message
+        lastToastTime = currentTime
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {
