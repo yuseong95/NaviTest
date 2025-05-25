@@ -12,6 +12,7 @@ import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.flow.collectLatest
@@ -70,6 +71,13 @@ class MainActivity : ComponentActivity() {
 
     // 현재 선택된 탭
     private var currentTab = NavigationTab.HOME
+
+    // 뒤로가기 콜백 추가
+    private val backPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            handleBackPress()
+        }
+    }
 
     enum class NavigationTab {
         HOME, NAVIGATION, SETTINGS
@@ -130,6 +138,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // 뒤로가기 콜백 등록
+        onBackPressedDispatcher.addCallback(this, backPressedCallback)
+
         // ViewModel 초기화
         searchButtonViewModel = ViewModelProvider(this)[SearchButtonViewModel::class.java]
 
@@ -186,6 +197,73 @@ class MainActivity : ComponentActivity() {
 
         // 기본 탭 선택
         selectTab(NavigationTab.HOME)
+    }
+
+    // 뒤로가기 처리 로직
+    private fun handleBackPress() {
+        when {
+            // 1. 검색 UI가 열려있으면 검색 UI 닫기
+            searchButtonViewModel.isSearchUIVisible.value -> {
+                Log.d("MainActivity", "Back pressed - closing search UI")
+                searchButtonViewModel.closeSearchUI()
+            }
+
+            // 2. 설정 패널이 열려있으면 설정 패널 닫기
+            settingsPanel.visibility == View.VISIBLE -> {
+                Log.d("MainActivity", "Back pressed - closing settings panel")
+                selectTab(NavigationTab.HOME)
+            }
+
+            // 3. 내비게이션 모드 패널이 열려있으면 패널 닫기
+            navigationModePanel.visibility == View.VISIBLE -> {
+                Log.d("MainActivity", "Back pressed - closing navigation mode panel")
+                selectTab(NavigationTab.HOME)
+            }
+
+            // 4. 내비게이션이 활성화되어 있으면 내비게이션 취소 확인
+            ::navigationManager.isInitialized && navigationManager.isNavigating() -> {
+                Log.d("MainActivity", "Back pressed - showing navigation cancel dialog")
+                showNavigationCancelDialog()
+            }
+
+            // 5. 모든 것이 닫혀있으면 앱 종료 확인
+            else -> {
+                Log.d("MainActivity", "Back pressed - showing exit dialog")
+                showExitDialog()
+            }
+        }
+    }
+
+    // 내비게이션 취소 확인 다이얼로그
+    private fun showNavigationCancelDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(languageManager.getLocalizedString("내비게이션 취소", "Cancel Navigation"))
+            .setMessage(languageManager.getLocalizedString(
+                "내비게이션을 취소하시겠습니까?",
+                "Do you want to cancel navigation?"
+            ))
+            .setPositiveButton(languageManager.getLocalizedString("취소", "Cancel")) { _, _ ->
+                if (::navigationManager.isInitialized) {
+                    navigationManager.cancelNavigation()
+                }
+            }
+            .setNegativeButton(languageManager.getLocalizedString("계속", "Continue"), null)
+            .show()
+    }
+
+    // 앱 종료 확인 다이얼로그
+    private fun showExitDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(languageManager.getLocalizedString("앱 종료", "Exit App"))
+            .setMessage(languageManager.getLocalizedString(
+                "앱을 종료하시겠습니까?",
+                "Do you want to exit the app?"
+            ))
+            .setPositiveButton(languageManager.getLocalizedString("종료", "Exit")) { _, _ ->
+                finish()
+            }
+            .setNegativeButton(languageManager.getLocalizedString("취소", "Cancel"), null)
+            .show()
     }
 
     private fun setupNewUIEvents() {
@@ -467,12 +545,16 @@ class MainActivity : ComponentActivity() {
             // 하단 네비게이션 바 다시 표시
             bottomNavigationContainer.visibility = View.VISIBLE
 
-            // 목적지가 설정되어 있으면 시작 버튼 표시
-            if (::navigationManager.isInitialized &&
-                navigationManager.getRouteManager().hasValidRoute()) {
+            // 목적지가 설정되어 있거나 경로가 있으면 시작 버튼 표시
+            val hasDestination = ::navigationManager.isInitialized &&
+                    navigationManager.getRouteManager().hasValidRoute()
+
+            if (hasDestination) {
                 mainActionButton.visibility = View.VISIBLE
+                Log.d("MainActivity", "Showing start button - destination available")
             } else {
                 mainActionButton.visibility = View.GONE
+                Log.d("MainActivity", "Hiding start button - no destination")
             }
         }
     }
@@ -498,8 +580,12 @@ class MainActivity : ComponentActivity() {
 
         if (::navigationManager.isInitialized) {
             navigationManager.setDestination(point)
+
+            // 명시적으로 버튼 표시
             mainActionButton.visibility = View.VISIBLE
-            Log.d("MainActivity", "Destination set through NavigationManager")
+            updateUITexts() // 버튼 텍스트도 업데이트
+
+            Log.d("MainActivity", "Destination set through NavigationManager, button shown")
         } else {
             Log.e("MainActivity", "NavigationManager not initialized, cannot set destination")
             val message = languageManager.getLocalizedString(
@@ -509,6 +595,7 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         }
     }
+
 
     fun setNavigationActive(active: Boolean) {
         searchButtonViewModel.setNavigationActive(active)
@@ -601,7 +688,11 @@ class MainActivity : ComponentActivity() {
         mapInitializer.setMapClickListener { point ->
             if (::navigationManager.isInitialized && !navigationManager.isNavigating()) {
                 navigationManager.setDestination(point)
+
+                // 명시적으로 버튼 표시
                 mainActionButton.visibility = View.VISIBLE
+                updateUITexts()
+
                 return@setMapClickListener true
             }
             false
