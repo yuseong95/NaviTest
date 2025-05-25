@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.TextView
@@ -64,10 +65,29 @@ class MainActivity : ComponentActivity() {
     private lateinit var settingsPanel: LinearLayout
     private lateinit var mainActionButton: Button
 
+    // 경로 정보 관련 컴포넌트들
+    private lateinit var routeInfoPanel: LinearLayout
+    private lateinit var routeDistanceText: TextView
+    private lateinit var routeDurationText: TextView
+    private lateinit var arrivalTimeText: TextView
+
+    // 내비게이션 종료 확인 관련 컴포넌트들
+    private lateinit var navigationExitOverlay: RelativeLayout
+    private lateinit var navigationExitPanel: LinearLayout
+    private lateinit var exitTimerText: TextView
+    private lateinit var continueNavigationButton: Button
+    private lateinit var exitNavigationButton: Button
+    private lateinit var closeExitPanelButton: ImageButton
+
     // 네비게이션 탭들
     private lateinit var navHome: LinearLayout
     private lateinit var navNavigation: LinearLayout
     private lateinit var navSettings: LinearLayout
+
+    // 타이머 관련
+    private var exitTimer: android.os.CountDownTimer? = null
+    private var backPressedCount = 0
+    private var lastBackPressedTime = 0L
 
     // 현재 선택된 탭
     private var currentTab = NavigationTab.HOME
@@ -174,17 +194,13 @@ class MainActivity : ComponentActivity() {
             initializeSearchComponents()
         }
 
-        // 버튼 상태 디버깅
-        mainActionButton = findViewById(R.id.mainActionButton)
-        Log.d("MainActivity", "mainActionButton found: ${::mainActionButton.isInitialized}")
-        Log.d("MainActivity", "mainActionButton initial visibility: ${mainActionButton.visibility}")
-
-        // 버튼 클릭 리스너에 로그 추가
+        // 메인 액션 버튼 클릭 리스너
         mainActionButton.setOnClickListener {
             Log.d("MainActivity", "mainActionButton clicked")
             if (::navigationManager.isInitialized) {
                 if (navigationManager.isNavigating()) {
-                    navigationManager.cancelNavigation()
+                    // 내비게이션 중에는 이 버튼이 보이지 않아야 하지만, 혹시 모를 경우를 대비
+                    Log.w("MainActivity", "Main action button clicked during navigation - this should not happen")
                 } else {
                     navigationManager.startNavigation()
                 }
@@ -193,13 +209,27 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun initializeUIComponents() {
-        // 새로운 UI 컴포넌트들 참조
+        // 기존 UI 컴포넌트들 참조
         searchContainer = findViewById(R.id.searchContainer)
         searchOverlay = findViewById(R.id.searchOverlay)
         bottomNavigationContainer = findViewById(R.id.bottomNavigationContainer)
         navigationModePanel = findViewById(R.id.navigationModePanel)
         settingsPanel = findViewById(R.id.settingsPanel)
         mainActionButton = findViewById(R.id.mainActionButton)
+
+        // 경로 정보 관련 컴포넌트들
+        routeInfoPanel = findViewById(R.id.routeInfoPanel)
+        routeDistanceText = findViewById(R.id.routeDistanceText)
+        routeDurationText = findViewById(R.id.routeDurationText)
+        arrivalTimeText = findViewById(R.id.arrivalTimeText)
+
+        // 내비게이션 종료 확인 관련 컴포넌트들
+        navigationExitOverlay = findViewById(R.id.navigationExitOverlay)
+        navigationExitPanel = findViewById(R.id.navigationExitPanel)
+        exitTimerText = findViewById(R.id.exitTimerText)
+        continueNavigationButton = findViewById(R.id.continueNavigationButton)
+        exitNavigationButton = findViewById(R.id.exitNavigationButton)
+        closeExitPanelButton = findViewById(R.id.closeExitPanelButton)
 
         // 네비게이션 탭들
         navHome = findViewById(R.id.navHome)
@@ -211,6 +241,11 @@ class MainActivity : ComponentActivity() {
         searchOverlay.visibility = View.GONE
         navigationModePanel.visibility = View.GONE
         settingsPanel.visibility = View.GONE
+        routeInfoPanel.visibility = View.GONE
+        navigationExitOverlay.visibility = View.GONE
+
+        // 내비게이션 종료 패널 이벤트 설정
+        setupNavigationExitPanel()
 
         // 기본 탭 선택
         selectTab(NavigationTab.HOME)
@@ -219,31 +254,36 @@ class MainActivity : ComponentActivity() {
     // 뒤로가기 처리 로직
     private fun handleBackPress() {
         when {
-            // 1. 검색 UI가 열려있으면 검색 UI 닫기
+            // 1. 내비게이션 종료 확인 패널이 열려있으면 패널 닫기
+            navigationExitOverlay.visibility == View.VISIBLE -> {
+                Log.d("MainActivity", "Back pressed - closing navigation exit panel")
+                hideNavigationExitPanel()
+            }
+
+            // 2. 검색 UI가 열려있으면 검색 UI 닫기
             searchButtonViewModel.isSearchUIVisible.value -> {
                 Log.d("MainActivity", "Back pressed - closing search UI")
                 searchButtonViewModel.closeSearchUI()
             }
 
-            // 2. 설정 패널이 열려있으면 설정 패널 닫기
+            // 3. 설정 패널이 열려있으면 설정 패널 닫기
             settingsPanel.visibility == View.VISIBLE -> {
                 Log.d("MainActivity", "Back pressed - closing settings panel")
                 selectTab(NavigationTab.HOME)
             }
 
-            // 3. 내비게이션 모드 패널이 열려있으면 패널 닫기
+            // 4. 내비게이션 모드 패널이 열려있으면 패널 닫기
             navigationModePanel.visibility == View.VISIBLE -> {
                 Log.d("MainActivity", "Back pressed - closing navigation mode panel")
                 selectTab(NavigationTab.HOME)
             }
 
-            // 4. 내비게이션이 활성화되어 있으면 내비게이션 취소 확인
+            // 5. 내비게이션이 활성화되어 있으면 종료 확인 패널 표시 또는 이중 뒤로가기로 종료
             ::navigationManager.isInitialized && navigationManager.isNavigating() -> {
-                Log.d("MainActivity", "Back pressed - showing navigation cancel dialog")
-                showNavigationCancelDialog()
+                handleNavigationBackPress()
             }
 
-            // 5. 모든 것이 닫혀있으면 앱 종료 확인
+            // 6. 모든 것이 닫혀있으면 앱 종료 확인
             else -> {
                 Log.d("MainActivity", "Back pressed - showing exit dialog")
                 showExitDialog()
@@ -251,21 +291,128 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // 내비게이션 취소 확인 다이얼로그
-    private fun showNavigationCancelDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(languageManager.getLocalizedString("내비게이션 취소", "Cancel Navigation"))
-            .setMessage(languageManager.getLocalizedString(
-                "내비게이션을 취소하시겠습니까?",
-                "Do you want to cancel navigation?"
-            ))
-            .setPositiveButton(languageManager.getLocalizedString("취소", "Cancel")) { _, _ ->
+    // 내비게이션 중 뒤로가기 처리
+    private fun handleNavigationBackPress() {
+        val currentTime = System.currentTimeMillis()
+
+        if (currentTime - lastBackPressedTime < 2000) {
+            // 2초 내에 두 번째 뒤로가기 - 즉시 내비게이션 종료
+            backPressedCount++
+            if (backPressedCount >= 2) {
+                Log.d("MainActivity", "Double back press - canceling navigation immediately")
                 if (::navigationManager.isInitialized) {
                     navigationManager.cancelNavigation()
                 }
+                backPressedCount = 0
+                return
             }
-            .setNegativeButton(languageManager.getLocalizedString("계속", "Continue"), null)
-            .show()
+        } else {
+            // 첫 번째 뒤로가기 또는 시간이 지난 후 - 종료 확인 패널 표시
+            backPressedCount = 1
+            showNavigationExitPanel()
+        }
+
+        lastBackPressedTime = currentTime
+    }
+
+    // 내비게이션 종료 패널 설정
+    private fun setupNavigationExitPanel() {
+        // 계속하기 버튼
+        continueNavigationButton.setOnClickListener {
+            Log.d("MainActivity", "Continue navigation button clicked")
+            hideNavigationExitPanel()
+            backPressedCount = 0
+        }
+
+        // 종료 버튼
+        exitNavigationButton.setOnClickListener {
+            Log.d("MainActivity", "Exit navigation button clicked")
+            if (::navigationManager.isInitialized) {
+                navigationManager.cancelNavigation()
+            }
+            hideNavigationExitPanel()
+            backPressedCount = 0
+        }
+
+        // X 버튼
+        closeExitPanelButton.setOnClickListener {
+            Log.d("MainActivity", "Close exit panel button clicked")
+            hideNavigationExitPanel()
+            backPressedCount = 0
+        }
+
+        // 오버레이 클릭으로 패널 닫기
+        navigationExitOverlay.setOnClickListener { view ->
+            if (view == navigationExitOverlay) {
+                Log.d("MainActivity", "Exit panel overlay clicked")
+                hideNavigationExitPanel()
+                backPressedCount = 0
+            }
+        }
+
+        // 패널 자체 클릭 시에는 닫히지 않도록
+        navigationExitPanel.setOnClickListener {
+            // 이벤트 소비만 하고 아무것도 하지 않음
+        }
+    }
+
+    // 내비게이션 종료 패널 표시
+    private fun showNavigationExitPanel() {
+        Log.d("MainActivity", "Showing navigation exit panel")
+
+        navigationExitOverlay.visibility = View.VISIBLE
+
+        // 슬라이드 업 애니메이션
+        val animator = ObjectAnimator.ofFloat(navigationExitPanel, "translationY", 400f, 0f)
+        animator.duration = 300
+        animator.interpolator = DecelerateInterpolator()
+        animator.start()
+
+        // 10초 타이머 시작
+        startExitTimer()
+    }
+
+    // 내비게이션 종료 패널 숨기기
+    private fun hideNavigationExitPanel() {
+        Log.d("MainActivity", "Hiding navigation exit panel")
+
+        stopExitTimer()
+
+        // 슬라이드 다운 애니메이션
+        val animator = ObjectAnimator.ofFloat(navigationExitPanel, "translationY", 0f, 400f)
+        animator.duration = 300
+        animator.interpolator = DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            if (animation.animatedFraction == 1.0f) {
+                navigationExitOverlay.visibility = View.GONE
+            }
+        }
+        animator.start()
+    }
+
+    // 10초 자동 종료 타이머 시작
+    private fun startExitTimer() {
+        stopExitTimer() // 기존 타이머가 있으면 중지
+
+        exitTimer = object : android.os.CountDownTimer(10000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val secondsLeft = (millisUntilFinished / 1000).toInt()
+                exitTimerText.text = secondsLeft.toString()
+            }
+
+            override fun onFinish() {
+                Log.d("MainActivity", "Exit timer finished - auto continuing navigation")
+                hideNavigationExitPanel()
+                backPressedCount = 0
+            }
+        }.start()
+    }
+
+    // 타이머 중지
+    private fun stopExitTimer() {
+        exitTimer?.cancel()
+        exitTimer = null
+        exitTimerText.text = "10"
     }
 
     // 앱 종료 확인 다이얼로그
@@ -303,17 +450,6 @@ class MainActivity : ComponentActivity() {
 
         navSettings.setOnClickListener {
             selectTab(NavigationTab.SETTINGS)
-        }
-
-        // 메인 액션 버튼 클릭 이벤트
-        mainActionButton.setOnClickListener {
-            if (::navigationManager.isInitialized) {
-                if (navigationManager.isNavigating()) {
-                    navigationManager.cancelNavigation()
-                } else {
-                    navigationManager.startNavigation()
-                }
-            }
         }
 
         // 내비게이션 모드 패널 옵션들
@@ -436,7 +572,7 @@ class MainActivity : ComponentActivity() {
         val searchHint = findViewById<TextView>(R.id.searchHint)
         searchHint.text = languageManager.getLocalizedString("목적지 검색", "Search destination")
 
-        // 더 짧은 텍스트 사용
+        // 메인 액션 버튼 텍스트 업데이트
         mainActionButton.text = if (::navigationManager.isInitialized && navigationManager.isNavigating()) {
             languageManager.getLocalizedString("취소", "Cancel")
         } else {
@@ -559,20 +695,25 @@ class MainActivity : ComponentActivity() {
 
         if (isNavigating) {
             // 내비게이션 시작시
-            mainActionButton.text = languageManager.getLocalizedString("내비게이션 취소", "Cancel Navigation")
-            mainActionButton.visibility = View.VISIBLE
+            mainActionButton.visibility = View.GONE // 내비게이션 중에는 버튼 숨김
 
             // 하단 네비게이션 바 숨기기 (내비게이션 중에는 모드 변경 불가)
             bottomNavigationContainer.visibility = View.GONE
 
             // 모든 패널 숨기기
             hideAllPanels()
+
+            // 경로 정보는 계속 표시 (숨기지 않음)
+            Log.d("MainActivity", "Navigation started - hiding controls, keeping route info")
         } else {
             // 내비게이션 종료시
             mainActionButton.text = languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
 
             // 하단 네비게이션 바 다시 표시
             bottomNavigationContainer.visibility = View.VISIBLE
+
+            // 경로 정보 패널 숨기기
+            hideRouteInfo()
 
             // hasDestination 체크 방식 개선
             val hasDestination = checkIfDestinationExists()
@@ -604,6 +745,26 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Error checking destination", e)
             false
+        }
+    }
+
+    // 경로 정보 업데이트
+    fun updateRouteInfo(distance: String, duration: String, arrivalTime: String) {
+        runOnUiThread {
+            routeDistanceText.text = distance
+            routeDurationText.text = duration
+            arrivalTimeText.text = arrivalTime
+            routeInfoPanel.visibility = View.VISIBLE
+
+            Log.d("MainActivity", "Route info updated - Distance: $distance, Duration: $duration, Arrival: $arrivalTime")
+        }
+    }
+
+    // 경로 정보 숨기기
+    fun hideRouteInfo() {
+        runOnUiThread {
+            routeInfoPanel.visibility = View.GONE
+            Log.d("MainActivity", "Route info hidden")
         }
     }
 
@@ -643,7 +804,7 @@ class MainActivity : ComponentActivity() {
                     RelativeLayout.LayoutParams.MATCH_PARENT,
                     resources.getDimensionPixelSize(R.dimen.main_action_button_height)
                 )
-                layoutParams.addRule(RelativeLayout.ABOVE, R.id.bottomNavigationContainer)
+                layoutParams.addRule(RelativeLayout.ABOVE, R.id.bottomNavigation)
                 layoutParams.setMargins(
                     resources.getDimensionPixelSize(R.dimen.margin_large),
                     0,
@@ -662,16 +823,19 @@ class MainActivity : ComponentActivity() {
             Log.d("MainActivity", "Destination set through NavigationManager")
         }
     }
-    // 목적지 설정 완료 콜백
+
+    // 목적지 설정 완료 콜백 (개선)
     fun onDestinationSet() {
         Log.d("MainActivity", "onDestinationSet called")
-        mainActionButton.visibility = View.VISIBLE
-        updateUITexts()
+        runOnUiThread {
+            mainActionButton.visibility = View.VISIBLE
+            updateUITexts()
 
-        // 선택적으로 토스트 메시지 표시
-        Toast.makeText(this,
-            languageManager.getLocalizedString("목적지가 설정되었습니다", "Destination set"),
-            Toast.LENGTH_SHORT).show()
+            // 토스트 메시지 표시
+            Toast.makeText(this,
+                languageManager.getLocalizedString("목적지가 설정되었습니다", "Destination set"),
+                Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun setNavigationActive(active: Boolean) {
@@ -809,6 +973,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         Log.d("MainActivity", "onDestroy called")
+
+        // 타이머 정리
+        stopExitTimer()
 
         if (::searchManager.isInitialized) {
             searchManager.cleanup()

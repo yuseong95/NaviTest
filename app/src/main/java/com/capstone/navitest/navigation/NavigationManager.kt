@@ -526,12 +526,70 @@ class NavigationManager(
     // RouteManager.OnRouteChangeListener 구현
     override fun onRouteReady(routes: List<NavigationRoute>) {
         Log.d("NavigationManager", "Routes ready: ${routes.size}")
-        // 이미 routesObserver에서 처리하므로 여기서는 추가 작업 불필요
+
+        // 경로 정보 계산 및 MainActivity에 전달
+        if (routes.isNotEmpty()) {
+            updateRouteInfoDisplay(routes.first())
+        }
     }
 
     override fun onRouteError(message: String) {
         Log.e("NavigationManager", "Route error: $message")
-        // 필요 시 추가 처리 가능
+        // 경로 오류 시 경로 정보 숨기기
+        hideRouteInfoDisplay()
+    }
+
+    // 경로 정보 표시 업데이트
+    private fun updateRouteInfoDisplay(route: NavigationRoute) {
+        try {
+            val routeOptions = route.directionsRoute
+            val distance = routeOptions.distance()?.let { distanceInMeters ->
+                if (distanceInMeters >= 1000) {
+                    String.format("%.1f km", distanceInMeters / 1000)
+                } else {
+                    String.format("%.0f m", distanceInMeters)
+                }
+            } ?: "--"
+
+            val duration = routeOptions.duration()?.let { durationInSeconds ->
+                val hours = (durationInSeconds / 3600).toInt()
+                val minutes = ((durationInSeconds % 3600) / 60).toInt()
+
+                when {
+                    hours > 0 -> String.format("%d시간 %d분", hours, minutes)
+                    minutes > 0 -> String.format("%d분", minutes)
+                    else -> "1분 미만"
+                }
+            } ?: "--"
+
+            val arrivalTime = routeOptions.duration()?.let { durationInSeconds ->
+                val currentTime = System.currentTimeMillis()
+                val arrivalTimeMillis = currentTime + (durationInSeconds * 1000).toLong()
+                val calendar = java.util.Calendar.getInstance()
+                calendar.timeInMillis = arrivalTimeMillis
+
+                String.format("%02d:%02d",
+                    calendar.get(java.util.Calendar.HOUR_OF_DAY),
+                    calendar.get(java.util.Calendar.MINUTE)
+                )
+            } ?: "--"
+
+            // MainActivity에 경로 정보 전달
+            (context as? MainActivity)?.runOnUiThread {
+                (context as MainActivity).updateRouteInfo(distance, duration, arrivalTime)
+            }
+
+            Log.d("NavigationManager", "Route info updated - Distance: $distance, Duration: $duration, Arrival: $arrivalTime")
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error updating route info display", e)
+        }
+    }
+
+    // 경로 정보 숨기기
+    private fun hideRouteInfoDisplay() {
+        (context as? MainActivity)?.runOnUiThread {
+            (context as MainActivity).hideRouteInfo()
+        }
     }
 
     // LocationManager.OnLocationChangeListener 구현
