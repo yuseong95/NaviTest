@@ -74,11 +74,17 @@ class SearchButtonViewModel : ViewModel() {
     }
 
     // 목적지 설정 상태
+    // 목적지 설정 상태
     fun setHasDestination(hasDestination: Boolean) {
         viewModelScope.launch {
             try {
-                Log.d("SearchButtonViewModel", "Setting has destination: $hasDestination")
-                _hasDestination.value = hasDestination
+                Log.d("SearchButtonViewModel", "Setting has destination: $hasDestination (previous: ${_hasDestination.value})")
+                if (_hasDestination.value != hasDestination) {
+                    _hasDestination.value = hasDestination
+                    Log.d("SearchButtonViewModel", "Destination state updated to: $hasDestination")
+                } else {
+                    Log.d("SearchButtonViewModel", "Destination state unchanged: $hasDestination")
+                }
             } catch (e: Exception) {
                 Log.e("SearchButtonViewModel", "Error setting has destination", e)
             }

@@ -226,8 +226,8 @@ class NavigationManager(
                     val destination = markerManager.addMarker(point)
                     routeManager.setDestination(destination)
 
-                    // 시작 버튼 활성화
-                    navigationUI.setStartButtonEnabled(true)
+                    // 즉시 MainActivity에 목적지 설정 알림
+                    notifyDestinationSet()
                 }
                 true
             }
@@ -601,11 +601,10 @@ class NavigationManager(
             if (::routeManager.isInitialized) {
                 routeManager.setOrigin(location)
 
-                // 목적지가 이미 설정되어 있다면 시작 버튼 활성화
+                // 목적지가 이미 설정되어 있다면 MainActivity에 알림
                 if (routeManager.getDestination() != null) {
-                    Log.d("NavigationManager", "Both origin and destination available, enabling start button")
-                    navigationUI.setStartButtonEnabled(true)
-                    searchButtonViewModel?.setHasDestination(true)
+                    Log.d("NavigationManager", "Both origin and destination available")
+                    notifyDestinationSet()
                 }
 
                 // 네비게이션 중이고 목적지가 설정된 경우 주기적으로 경로 업데이트
@@ -617,6 +616,23 @@ class NavigationManager(
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error handling location change", e)
+        }
+    }
+
+    // 목적지 설정 알림
+    private fun notifyDestinationSet() {
+        try {
+            // ViewModel 상태 업데이트
+            searchButtonViewModel?.setHasDestination(true)
+
+            // MainActivity에 직접 알림
+            (context as? MainActivity)?.runOnUiThread {
+                (context as MainActivity).onDestinationSet()
+            }
+
+            Log.d("NavigationManager", "Destination set notification sent to MainActivity")
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error notifying destination set", e)
         }
     }
 
@@ -640,16 +656,8 @@ class NavigationManager(
                 // 경로 관리자에 목적지 설정
                 routeManager.setDestination(point)
 
-                // ViewModel 상태 먼저 업데이트
-                searchButtonViewModel?.setHasDestination(true)
-
-                // MainActivity에 직접 알림 추가
-                (context as? MainActivity)?.runOnUiThread {
-                    (context as MainActivity).onDestinationSet()
-                }
-
-                // NavigationUI를 통해 시작 버튼 활성화는 제거 (중복 제어 방지)
-                // navigationUI.setStartButtonEnabled(true)
+                // 즉시 목적지 설정 알림
+                notifyDestinationSet()
 
                 // 오프라인 상태에서 목적지 설정 시 안내 메시지
                 val isOffline = !isNetworkAvailable()
