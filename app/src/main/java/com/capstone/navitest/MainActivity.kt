@@ -514,8 +514,9 @@ class MainActivity : ComponentActivity() {
         }
 
         offlineMapOption.setOnClickListener {
-            // 오프라인 지도 관리 화면으로 이동 (추후 구현)
-            Toast.makeText(this, "오프라인 지도 관리 기능은 추후 구현 예정입니다", Toast.LENGTH_SHORT).show()
+            // 오프라인 지도 관리 액티비티 시작
+            val intent = android.content.Intent(this, com.capstone.navitest.offline.OfflineMapActivity::class.java)
+            startActivity(intent)
         }
 
         appInfoOption.setOnClickListener {
