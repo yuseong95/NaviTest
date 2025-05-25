@@ -80,9 +80,7 @@ class NavigationUI(
                 maneuverView.visibility = View.VISIBLE
                 tripProgressView.visibility = View.VISIBLE
 
-                // 재중앙화 버튼은 카메라 상태에 따라 NavigationManager에서 제어
-
-                Log.d("NavigationUI", "Navigation start UI updated")
+                Log.d("NavigationUI", "Navigation start UI updated - guidance container shown")
             } catch (e: Exception) {
                 Log.e("NavigationUI", "Error updating UI for navigation start", e)
             }
@@ -103,18 +101,11 @@ class NavigationUI(
                 // 재중앙화 버튼 숨기기
                 recenterButton.visibility = View.GONE
 
-                Log.d("NavigationUI", "Navigation cancel UI updated")
+                Log.d("NavigationUI", "Navigation cancel UI updated - guidance container hidden")
             } catch (e: Exception) {
                 Log.e("NavigationUI", "Error updating UI for navigation cancel", e)
             }
         }
-    }
-
-    // 이 메서드는 더 이상 직접 UI를 제어하지 않고 MainActivity에 요청
-    fun setStartButtonEnabled(enabled: Boolean) {
-        // MainActivity의 updateNavigationUI에서 처리하므로
-        // 여기서는 로깅만 수행
-        Log.d("NavigationUI", "Start button enabled state: $enabled")
     }
 
     fun setRecenterButtonVisibility(visible: Boolean) {

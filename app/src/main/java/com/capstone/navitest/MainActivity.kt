@@ -2,6 +2,7 @@ package com.capstone.navitest
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -752,8 +753,10 @@ class MainActivity : ComponentActivity() {
             // 모든 패널 숨기기
             hideAllPanels()
 
-            // 경로 정보는 계속 표시 (숨기지 않음)
-            Log.d("MainActivity", "Navigation started - hiding controls, keeping route info")
+            // 내비게이션 시작 시 상단 경로 정보 패널 숨기기 (중복 방지)
+            routeInfoPanel.visibility = View.GONE
+
+            Log.d("MainActivity", "Navigation started - hiding controls and route info panel")
         } else {
             // 내비게이션 종료시
             mainActionButton.text = languageManager.getLocalizedString("내비게이션 시작", "Start Navigation")
@@ -775,7 +778,14 @@ class MainActivity : ComponentActivity() {
             routeDistanceText.text = distance
             routeDurationText.text = duration
             arrivalTimeText.text = arrivalTime
-            routeInfoPanel.visibility = View.VISIBLE
+
+            // 내비게이션 중이 아닐 때만 상단 경로 정보 패널 표시
+            if (!isNavigationActive) {
+                routeInfoPanel.visibility = View.VISIBLE
+                Log.d("MainActivity", "Route info panel shown (not navigating)")
+            } else {
+                Log.d("MainActivity", "Route info updated but panel hidden (navigating)")
+            }
 
             Log.d("MainActivity", "Route info updated - Distance: $distance, Duration: $duration, Arrival: $arrivalTime")
         }
@@ -970,6 +980,26 @@ class MainActivity : ComponentActivity() {
                 searchHint.text = languageManager.getLocalizedString("오프라인 모드", "Offline mode")
                 searchHint.setTextColor(getColor(R.color.offline_status))
             }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        Log.d("MainActivity", "Configuration changed - orientation: ${newConfig.orientation}")
+
+        // 화면 회전 시 맵뷰 레이아웃 조정 (필요한 경우)
+        if (::mapInitializer.isInitialized) {
+            // 맵뷰 크기 재조정을 위해 약간의 지연 후 처리
+            mapInitializer.getMapView().post {
+                mapInitializer.getMapView().requestLayout()
+            }
+        }
+
+        // 내비게이션 카메라 뷰포트 재계산 (필요한 경우)
+        if (::navigationManager.isInitialized && navigationManager.isNavigating()) {
+            // 내비게이션 중이면 카메라 뷰포트 다시 계산
+            navigationManager.recenterCamera()
         }
     }
 
