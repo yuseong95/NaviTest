@@ -2,17 +2,20 @@ package com.capstone.navitest.navigation
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.capstone.navitest.MainActivity
 import com.capstone.navitest.map.MapInitializer
 import com.capstone.navitest.map.MarkerManager
+import com.capstone.navitest.search.SearchButtonViewModel
 import com.capstone.navitest.ui.LanguageManager
 import com.capstone.navitest.ui.NavigationUI
-import com.mapbox.common.TileStore
+import com.capstone.navitest.utils.Constants
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.EdgeInsets
@@ -21,16 +24,11 @@ import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
-import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
 import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
-import com.mapbox.navigation.base.options.NavigationOptions
-import com.mapbox.navigation.base.options.RoutingTilesOptions
 import com.mapbox.navigation.base.route.NavigationRoute
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
-import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
-import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
@@ -45,18 +43,10 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
-import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineApiOptions
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineViewOptions
-import kotlinx.coroutines.launch
-
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.os.Build
-import com.capstone.navitest.search.SearchButtonViewModel
-
 
 class NavigationManager(
     private val context: Context,
@@ -96,6 +86,9 @@ class NavigationManager(
     // 카메라 초기화 추적
     private var hasInitializedCamera = false
 
+    private var lastToastMessage = ""
+    private var lastToastTime = 0L
+
     init {
         try {
             Log.d("NavigationManager", "Initializing navigation components")
@@ -127,7 +120,7 @@ class NavigationManager(
     }
 
     // MapboxNavigation 설정 메서드
-    fun setMapboxNavigation(navigation: MapboxNavigation) {
+    private fun setMapboxNavigation(navigation: MapboxNavigation) {
         Log.d("NavigationManager", "Setting MapboxNavigation instance")
 
         if (!::mapboxNavigation.isInitialized) {
@@ -181,7 +174,12 @@ class NavigationManager(
         }
 
         // 경로 라인 API 및 뷰 초기화
-        routeLineApi = MapboxRouteLineApi(MapboxRouteLineApiOptions.Builder().build())
+        routeLineApi = MapboxRouteLineApi(
+            MapboxRouteLineApiOptions.Builder()
+                .vanishingRouteLineEnabled(true) // vanishing route line 기능 활성화
+                .vanishingRouteLineUpdateIntervalNano(100_000_000L) // 업데이트 간격 설정 (0.1초)
+                .build()
+        )
         routeLineView = MapboxRouteLineView(
             MapboxRouteLineViewOptions.Builder(context).build()
         )
@@ -227,14 +225,18 @@ class NavigationManager(
             mapView.gestures.addOnMapClickListener { point ->
                 // 네비게이션 중이 아닐 때만 목적지 설정 가능
                 if (!isNavigating && ::mapboxNavigation.isInitialized) {
+                    Log.d("NavigationManager", "Map clicked - setting new destination")
+
                     // 마커 추가 및 목적지 설정
                     val destination = markerManager.addMarker(point)
                     routeManager.setDestination(destination)
 
-                    // 시작 버튼 활성화
-                    navigationUI.setStartButtonEnabled(true)
+                    // 목적지 설정 알림 (한 번만)
+                    notifyDestinationSet()
+
+                    return@addOnMapClickListener true
                 }
-                true
+                false
             }
 
             Log.d("NavigationManager", "Map click listener set up")
@@ -329,6 +331,11 @@ class NavigationManager(
             viewportDataSource.onLocationChanged(enhancedLocation)
             viewportDataSource.evaluate()
 
+            // vanishing route line 업데이트
+            if (isNavigating) {
+                updateVanishingRouteLine(currentLocation)
+            }
+
             // 첫 위치 수신 시 카메라 위치 설정 - 이중 안전장치
             if (!hasInitializedCamera) {
                 mapView.mapboxMap.setCamera(
@@ -343,6 +350,30 @@ class NavigationManager(
         }
     }
 
+    // vanishing route line 업데이트 메서드
+    private fun updateVanishingRouteLine(currentLocation: Point) {
+        try {
+            // updateTraveledRouteLine은 콜백을 받지 않고 바로 결과를 반환
+            val result = routeLineApi.updateTraveledRouteLine(currentLocation)
+
+            // result 전체를 renderRouteLineUpdate에 전달
+            mapView.mapboxMap.style?.let { style ->
+                routeLineView.renderRouteLineUpdate(style, result)
+            }
+
+            // 로깅은 성공/실패에 따라 분기
+            result.value?.let {
+                Log.d("NavigationManager", "Vanishing route line updated for location: ${currentLocation.longitude()}, ${currentLocation.latitude()}")
+            } ?: run {
+                result.error?.let { error ->
+                    Log.e("NavigationManager", "Error updating vanishing route line: ${error.errorMessage}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error updating vanishing route line", e)
+        }
+    }
+
     // 경로 진행 관찰자
     private val routeProgressObserver = RouteProgressObserver { routeProgress ->
         try {
@@ -353,6 +384,15 @@ class NavigationManager(
             // 경로 진행 정보 업데이트
             val tripProgress = tripProgressApi.getTripProgress(routeProgress)
             navigationUI.updateTripProgressView(tripProgress)
+
+            // vanishing route line 업데이트 (가장 간단한 방법)
+            if (isNavigating) {
+                routeLineApi.updateWithRouteProgress(routeProgress) { result ->
+                    mapView.mapboxMap.style?.let { style ->
+                        routeLineView.renderRouteLineUpdate(style, result)
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error processing route progress", e)
         }
@@ -361,14 +401,10 @@ class NavigationManager(
     // 네비게이션 시작
     fun startNavigation() {
         if (::routeManager.isInitialized && routeManager.hasValidRoute()) {
-            Log.d("NavigationManager", "Starting navigation")
-
             isNavigating = true
 
-            // 운전 시점으로 카메라 줌/피치 오버라이드
-            viewportDataSource.followingZoomPropertyOverride(20.0)
-            viewportDataSource.followingPitchPropertyOverride(45.0)
-            viewportDataSource.evaluate()
+            // 내비게이션 모드별 카메라 설정
+            applyCameraSettingsForNavigationMode()
 
             // UI 업데이트
             navigationUI.updateUIForNavigationStart()
@@ -378,49 +414,101 @@ class NavigationManager(
 
             // 경로 재요청
             routeManager.requestRoute()
-
-            Log.d("NavigationManager", "Navigation started")
         }
     }
 
-    fun cancelNavigation() {
-        Log.d("NavigationManager", "Canceling navigation")
-
-        isNavigating = false
-
-        // 카메라 오버라이드 해제
-        viewportDataSource.followingZoomPropertyOverride(null)
-        viewportDataSource.followingPitchPropertyOverride(null)
-        viewportDataSource.evaluate()
-
-        // UI 업데이트
-        navigationUI.updateUIForNavigationCancel()
-
-        // ViewModel 상태 업데이트 - 목적지와 내비게이션 모두 리셋
-        searchButtonViewModel?.setNavigationActive(false)
-        searchButtonViewModel?.setHasDestination(false)
-
-        // 경로 라인 명시적으로 지우기
-        if (::routeLineApi.isInitialized) {
-            lifecycleScope.launch {
-                routeLineApi.clearRouteLine { value ->
-                    mapView.mapboxMap.style?.let { style ->
-                        routeLineView.renderClearRouteLineValue(style, value)
-                    }
-                }
+    // 내비게이션 모드별 카메라 설정 적용
+    private fun applyCameraSettingsForNavigationMode() {
+        when (languageManager.currentNavigationMode) {
+            Constants.NAVIGATION_MODE_WALKING -> {
+                // 도보: 더 넓은 시야, 덜 기울어진 각도
+                viewportDataSource.followingZoomPropertyOverride(16.0)
+                viewportDataSource.followingPitchPropertyOverride(15.0)
+                Log.d("NavigationManager", "Applied walking camera settings: zoom=16.0, pitch=15.0")
+            }
+            Constants.NAVIGATION_MODE_CYCLING -> {
+                // 자전거: 중간 시야, 중간 각도
+                viewportDataSource.followingZoomPropertyOverride(17.0)
+                viewportDataSource.followingPitchPropertyOverride(25.0)
+                Log.d("NavigationManager", "Applied cycling camera settings: zoom=17.0, pitch=25.0")
+            }
+            Constants.NAVIGATION_MODE_DRIVING -> {
+                // 자동차: 가까운 시야, 3D 시점
+                viewportDataSource.followingZoomPropertyOverride(20.0)
+                viewportDataSource.followingPitchPropertyOverride(45.0)
+                Log.d("NavigationManager", "Applied driving camera settings: zoom=20.0, pitch=45.0")
             }
         }
+        viewportDataSource.evaluate()
+    }
 
-        // 경로 및 마커 삭제
-        if (::routeManager.isInitialized) {
-            routeManager.clearRoutes()
+    fun cancelNavigation() {
+        try {
+            Log.d("NavigationManager", "Canceling navigation")
+
+            isNavigating = false
+
+            // 카메라 오버라이드 해제
+            viewportDataSource.followingZoomPropertyOverride(null)
+            viewportDataSource.followingPitchPropertyOverride(null)
+            viewportDataSource.evaluate()
+
+            // UI 업데이트
+            navigationUI.updateUIForNavigationCancel()
+
+            // ViewModel 상태 업데이트 - 목적지와 내비게이션 모두 리셋
+            searchButtonViewModel?.setNavigationActive(false)
+            searchButtonViewModel?.setHasDestination(false)
+
+            // 경로 라인 명시적으로 지우기
+            clearAllRouteLines()
+
+            // 경로 및 마커 삭제
+            if (::routeManager.isInitialized) {
+                routeManager.clearRoutes()
+            }
+
+            if (::markerManager.isInitialized) {
+                markerManager.clearMarkers()
+            }
+
+            Log.d("NavigationManager", "Navigation canceled successfully")
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error canceling navigation", e)
         }
+    }
 
-        if (::markerManager.isInitialized) {
-            markerManager.clearMarkers()
+    // 경로 라인 정리 메서드 추가
+    private fun clearAllRouteLines() {
+        if (::routeLineApi.isInitialized) {
+            try {
+                // 콜백 버전의 clearRouteLine 사용
+                routeLineApi.clearRouteLine { clearRouteLineResult ->
+                    mapView.mapboxMap.style?.let { style ->
+                        routeLineView.renderClearRouteLineValue(style, clearRouteLineResult)
+                    }
+
+                    // 성공/실패 로깅
+                    clearRouteLineResult.value?.let {
+                        Log.d("NavigationManager", "Route line cleared successfully")
+                    } ?: run {
+                        clearRouteLineResult.error?.let { error ->
+                            Log.e("NavigationManager", "Error clearing route line: ${error.errorMessage}")
+                        }
+                    }
+                }
+
+                // vanishing route line 초기화
+                locationManager.getCurrentLocation()?.let { currentLocation ->
+                    val resetResult = routeLineApi.updateTraveledRouteLine(currentLocation)
+                    mapView.mapboxMap.style?.let { style ->
+                        routeLineView.renderRouteLineUpdate(style, resetResult)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("NavigationManager", "Error clearing route lines", e)
+            }
         }
-
-        Log.d("NavigationManager", "Navigation canceled")
     }
 
     // 카메라 재중앙화
@@ -445,12 +533,70 @@ class NavigationManager(
     // RouteManager.OnRouteChangeListener 구현
     override fun onRouteReady(routes: List<NavigationRoute>) {
         Log.d("NavigationManager", "Routes ready: ${routes.size}")
-        // 이미 routesObserver에서 처리하므로 여기서는 추가 작업 불필요
+
+        // 경로 정보 계산 및 MainActivity에 전달
+        if (routes.isNotEmpty()) {
+            updateRouteInfoDisplay(routes.first())
+        }
     }
 
     override fun onRouteError(message: String) {
         Log.e("NavigationManager", "Route error: $message")
-        // 필요 시 추가 처리 가능
+        // 경로 오류 시 경로 정보 숨기기
+        hideRouteInfoDisplay()
+    }
+
+    // 경로 정보 표시 업데이트
+    private fun updateRouteInfoDisplay(route: NavigationRoute) {
+        try {
+            val routeOptions = route.directionsRoute
+            val distance = routeOptions.distance()?.let { distanceInMeters ->
+                if (distanceInMeters >= 1000) {
+                    String.format("%.1f km", distanceInMeters / 1000)
+                } else {
+                    String.format("%.0f m", distanceInMeters)
+                }
+            } ?: "--"
+
+            val duration = routeOptions.duration()?.let { durationInSeconds ->
+                val hours = (durationInSeconds / 3600).toInt()
+                val minutes = ((durationInSeconds % 3600) / 60).toInt()
+
+                when {
+                    hours > 0 -> String.format("%d시간 %d분", hours, minutes)
+                    minutes > 0 -> String.format("%d분", minutes)
+                    else -> "1분 미만"
+                }
+            } ?: "--"
+
+            val arrivalTime = routeOptions.duration()?.let { durationInSeconds ->
+                val currentTime = System.currentTimeMillis()
+                val arrivalTimeMillis = currentTime + (durationInSeconds * 1000).toLong()
+                val calendar = java.util.Calendar.getInstance()
+                calendar.timeInMillis = arrivalTimeMillis
+
+                String.format("%02d:%02d",
+                    calendar.get(java.util.Calendar.HOUR_OF_DAY),
+                    calendar.get(java.util.Calendar.MINUTE)
+                )
+            } ?: "--"
+
+            // MainActivity에 경로 정보 전달
+            (context as? MainActivity)?.runOnUiThread {
+                (context as MainActivity).updateRouteInfo(distance, duration, arrivalTime)
+            }
+
+            Log.d("NavigationManager", "Route info updated - Distance: $distance, Duration: $duration, Arrival: $arrivalTime")
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error updating route info display", e)
+        }
+    }
+
+    // 경로 정보 숨기기
+    private fun hideRouteInfoDisplay() {
+        (context as? MainActivity)?.runOnUiThread {
+            (context as MainActivity).hideRouteInfo()
+        }
     }
 
     // LocationManager.OnLocationChangeListener 구현
@@ -462,19 +608,47 @@ class NavigationManager(
             if (::routeManager.isInitialized) {
                 routeManager.setOrigin(location)
 
-                // 목적지가 이미 설정되어 있다면 시작 버튼 활성화
+                // 목적지가 처음 설정되었을 때만 알림 (중복 방지)
                 if (routeManager.getDestination() != null) {
-                    Log.d("NavigationManager", "Both origin and destination available, enabling start button")
-                    navigationUI.setStartButtonEnabled(true)
-                }
+                    val viewModel = searchButtonViewModel
+                    if (viewModel?.hasDestination?.value != true) {  // 상태가 false인 경우만
+                        Log.d("NavigationManager", "First time both origin and destination available")
+                        notifyDestinationSet()
+                    }
 
-                // 네비게이션 중이고 목적지가 설정된 경우 주기적으로 경로 업데이트
-                if (isNavigating && routeManager.getDestination() != null) {
-                    routeManager.requestRoute()
+                    // 네비게이션 중이고 목적지가 설정된 경우만 주기적으로 경로 업데이트
+                    if (isNavigating && routeManager.getDestination() != null) {
+                        routeManager.requestRoute()
+                    }
                 }
+            } else {
+                Log.w("NavigationManager", "RouteManager not initialized in onLocationChanged")
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error handling location change", e)
+        }
+    }
+
+    // 목적지 설정 알림
+    private fun notifyDestinationSet() {
+        try {
+            // ViewModel 상태 확인 후 업데이트
+            val viewModel = searchButtonViewModel
+            if (viewModel?.hasDestination?.value != true) {
+                Log.d("NavigationManager", "Setting destination state to true")
+                viewModel?.setHasDestination(true)
+
+                // MainActivity에 직접 알림
+                (context as? MainActivity)?.runOnUiThread {
+                    (context as MainActivity).onDestinationSet()
+                }
+
+                Log.d("NavigationManager", "Destination set notification sent to MainActivity")
+            } else {
+                Log.d("NavigationManager", "Destination already set - skipping notification")
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error notifying destination set", e)
         }
     }
 
@@ -483,35 +657,85 @@ class NavigationManager(
         return isNavigating
     }
 
+    private fun showDebouncedToast(message: String) {
+        val currentTime = System.currentTimeMillis()
+
+        // Constants에서 디바운싱 시간 가져오기
+        val debounceTime = when {
+            message.contains("오프라인") || message.contains("offline", true) ->
+                Constants.OFFLINE_TOAST_DEBOUNCE_TIME
+            message.contains("내비게이션") || message.contains("navigation", true) ->
+                Constants.NAVIGATION_TOAST_DEBOUNCE_TIME
+            else -> Constants.TOAST_DEBOUNCE_TIME
+        }
+
+        // 같은 메시지이고 지정된 시간 이내라면 토스트 표시 안 함
+        if (message == lastToastMessage && currentTime - lastToastTime < debounceTime) {
+            return
+        }
+
+        lastToastMessage = message
+        lastToastTime = currentTime
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
     // 목적지 설정 메서드
     fun setDestination(point: Point) {
         try {
             Log.d("NavigationManager", "Setting destination: ${point.longitude()}, ${point.latitude()}")
 
             if (::markerManager.isInitialized && ::routeManager.isInitialized) {
-                // 기존 마커 및 경로 삭제
+                // 기존 마커 및 경로 삭제 (중요: 순서 주의)
+                Log.d("NavigationManager", "Clearing existing markers and routes")
                 markerManager.clearMarkers()
 
+                // 기존 경로도 명시적으로 클리어
+                if (::mapboxNavigation.isInitialized) {
+                    mapboxNavigation.setNavigationRoutes(emptyList())
+                }
+
+                // 경로 라인도 클리어
+                clearAllRouteLines()
+
                 // 새 마커 추가
+                Log.d("NavigationManager", "Adding new marker")
                 markerManager.addMarker(point)
 
-                // 경로 관리자에 목적지 설정
+                // 경로 관리자에 목적지 설정 (이때 자동으로 새 경로 요청됨)
+                Log.d("NavigationManager", "Setting new destination in RouteManager")
                 routeManager.setDestination(point)
 
-                // UI 업데이트 - 시작 버튼 활성화
-                navigationUI.setStartButtonEnabled(true)
+                // 즉시 목적지 설정 알림
+                notifyDestinationSet()
 
-                // ViewModel에 목적지 설정 상태 알림
-                searchButtonViewModel?.setHasDestination(true)
+                // 오프라인 상태에서 목적지 설정 시 안내 메시지 (토스트 개선)
+                val isOffline = !isNetworkAvailable()
+                if (isOffline) {
+                    val message = languageManager.getLocalizedString(
+                        "오프라인 모드: 다운로드된 지역 내에서 내비게이션이 가능합니다",
+                        "Offline mode: Navigation available within downloaded areas"
+                    )
+                    showDebouncedToast(message)
+                }
 
-                Log.d("NavigationManager", "Destination set successfully, start button enabled")
+                Log.d("NavigationManager", "Destination set successfully (${if(isOffline) "offline" else "online"} mode)")
             } else {
                 Log.e("NavigationManager", "MarkerManager or RouteManager not initialized")
+                throw IllegalStateException("Navigation components not properly initialized")
             }
         } catch (e: Exception) {
             Log.e("NavigationManager", "Error setting destination", e)
+            val message = languageManager.getLocalizedString(
+                "목적지 설정 중 오류가 발생했습니다: ${e.message}",
+                "Error setting destination: ${e.message}"
+            )
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+
+            // 오류 발생 시 UI 상태도 초기화
+            searchButtonViewModel?.setHasDestination(false)
         }
     }
+
 
     fun getRouteManager(): RouteManager {
         if (!::routeManager.isInitialized) {
@@ -540,24 +764,28 @@ class NavigationManager(
     }
 
     fun checkNetworkStatus() {
-        val isOnline = isNetworkAvailable()
-        val message = if (isOnline) {
-            languageManager.getLocalizedString(
-                "온라인 모드: 검색 기능 사용 가능",
-                "Online mode: Search feature available"
-            )
-        } else {
-            languageManager.getLocalizedString(
-                "오프라인 모드: 내비게이션만 사용 가능",
-                "Offline mode: Navigation only"
-            )
-        }
+        try {
+            val isOnline = isNetworkAvailable()
+            val message = if (isOnline) {
+                languageManager.getLocalizedString(
+                    "온라인 모드: 검색 및 내비게이션 기능 모두 사용 가능",
+                    "Online mode: Search and navigation features available"
+                )
+            } else {
+                languageManager.getLocalizedString(
+                    "오프라인 모드: 내비게이션 사용 가능 (검색 기능은 온라인 필요)",
+                    "Offline mode: Navigation available (Search requires online connection)"
+                )
+            }
 
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
-        // 검색 버튼 활성화/비활성화 (MainActivity에 메소드 추가 필요)
-        if (context is MainActivity) {
-            context.setSearchButtonEnabled(isOnline)
+            // MainActivity에 네트워크 상태 알림
+            if (context is MainActivity) {
+                context.setSearchButtonEnabled(isOnline)
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error checking network status", e)
         }
     }
 

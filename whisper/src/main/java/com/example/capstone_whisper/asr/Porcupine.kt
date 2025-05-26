@@ -27,6 +27,7 @@ class PorcupineWakeWordDetector(
             //63n3NaYJi1Y7zv6/Ce3joTnUr5seV4hPdzSkheaLdmMPr6rpjiNmZA==
             porcupineManager = PorcupineManager.Builder()
                 .setAccessKey("oFaIK3VmcgGvtUg1o97yGvQXsdkkI2ta47Gucv3HRoqD8oVhQ1fdhA==") // AccessKey
+                //.setAccessKey("63n3NaYJi1Y7zv6/Ce3joTnUr5seV4hPdzSkheaLdmMPr6rpjiNmZA==")
                 .setModelPath(modelPath)
                 .setKeywordPaths(arrayOf(keywordPath))
                 .setSensitivity(0.7f)
