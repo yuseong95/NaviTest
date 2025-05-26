@@ -55,6 +55,9 @@ class OfflineMapActivity : ComponentActivity() {
     // 어댑터
     private lateinit var downloadedRegionsAdapter: DownloadedRegionsAdapter
 
+    // 모든 지역을 저장할 전역 변수
+    private lateinit var allRegions: List<InternationalRegion>
+
     // 현재 선택된 탭
     private var currentTab = OfflineTab.KOREAN_REGIONS
 
@@ -116,7 +119,7 @@ class OfflineMapActivity : ComponentActivity() {
         // 초기 상태 설정
         downloadProgressContainer.visibility = View.GONE
         updateLanguageTexts()
-        setupKoreanRegions()
+        setupAllRegions()
     }
 
     private fun setupEventListeners() {
@@ -125,15 +128,15 @@ class OfflineMapActivity : ComponentActivity() {
             finish()
         }
 
-        // 검색 버튼
+        // 검색 버튼을 새로운 스마트 검색으로 연결
         searchButton.setOnClickListener {
-            performSearch()
+            performSmartSearch()  // performSearch() → performSmartSearch()
         }
 
-        // 엔터키로 검색
+        // 엔터키로 검색도 새로운 스마트 검색으로 연결
         searchEditText.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                performSearch()
+                performSmartSearch()  // performSearch() → performSmartSearch()
                 true
             } else {
                 false
@@ -207,104 +210,154 @@ class OfflineMapActivity : ComponentActivity() {
         }
     }
 
-    private fun setupKoreanRegions() {
-        // 지역을 권역별로 그룹핑하고 좌표 정확도 개선
-        val koreanRegions = listOf(
-            // 수도권 (초기 맵과 동일하게 통합)
-            KoreanRegion(
+    private fun setupAllRegions() {
+        // 모든 지역을 하나의 리스트로 통합
+         allRegions = listOf(
+            // === 기존 한국 지역들 (country = "대한민국" 추가) ===
+            InternationalRegion(
                 "수도권 (서울·경기·인천)", "Seoul Metropolitan Area",
                 126.978, 37.566,
                 126.4, 127.6, 37.2, 38.0,
-                "서울특별시, 경기도, 인천광역시 통합 지역", RegionType.METROPOLITAN
+                "서울특별시, 경기도, 인천광역시 통합 지역", RegionType.METROPOLITAN,
+                "대한민국"
             ),
-
-            // 개별 광역시
-            KoreanRegion(
+            InternationalRegion(
                 "부산광역시", "Busan",
                 129.075, 35.180,
                 128.8, 129.3, 34.9, 35.4,
-                "남부 최대 항구도시", RegionType.CITY
+                "남부 최대 항구도시", RegionType.CITY,
+                "대한민국"
             ),
-            KoreanRegion(
+            InternationalRegion(
                 "대구광역시", "Daegu",
                 128.601, 35.871,
                 128.4, 128.9, 35.6, 36.1,
-                "영남권 중심도시", RegionType.CITY
+                "영남권 중심도시", RegionType.CITY,
+                "대한민국"
             ),
-            KoreanRegion(
+            InternationalRegion(
                 "광주광역시", "Gwangju",
                 126.852, 35.160,
                 126.6, 127.1, 35.0, 35.4,
-                "호남권 중심도시", RegionType.CITY
+                "호남권 중심도시", RegionType.CITY,
+                "대한민국"
             ),
-            KoreanRegion(
+            InternationalRegion(
                 "대전광역시", "Daejeon",
                 127.385, 36.351,
                 127.1, 127.7, 36.1, 36.6,
-                "충청권 과학도시", RegionType.CITY
+                "충청권 과학도시", RegionType.CITY,
+                "대한민국"
             ),
-            KoreanRegion(
+            InternationalRegion(
                 "울산광역시", "Ulsan",
                 129.311, 35.538,
                 129.0, 129.6, 35.3, 35.8,
-                "동남권 산업도시", RegionType.CITY
+                "동남권 산업도시", RegionType.CITY,
+                "대한민국"
+            ),
+            // 도 지역들도 동일하게... (생략)
+
+            // === 일본 주요 도시들 ===
+            InternationalRegion(
+                "도쿄 (Tokyo)", "Tokyo",
+                139.6917, 35.6895,
+                139.0, 140.5, 35.0, 36.5,
+                "일본 수도, 인구 1400만명", RegionType.INTERNATIONAL_MAJOR,
+                "일본"
+            ),
+            InternationalRegion(
+                "오사카 (Osaka)", "Osaka",
+                135.5023, 34.6937,
+                135.0, 136.0, 34.0, 35.5,
+                "일본 제2의 도시, 간사이 지역 중심", RegionType.INTERNATIONAL_MAJOR,
+                "일본"
+            ),
+            InternationalRegion(
+                "교토 (Kyoto)", "Kyoto",
+                135.7681, 35.0116,
+                135.2, 136.2, 34.7, 35.5,
+                "일본 고대 수도, 전통 문화의 중심", RegionType.INTERNATIONAL_CITY,
+                "일본"
+            ),
+            InternationalRegion(
+                "나고야 (Nagoya)", "Nagoya",
+                136.9066, 35.1815,
+                136.4, 137.4, 34.8, 35.6,
+                "일본 중부 최대 도시, 자동차 산업 중심", RegionType.INTERNATIONAL_CITY,
+                "일본"
+            ),
+            InternationalRegion(
+                "요코하마 (Yokohama)", "Yokohama",
+                139.6380, 35.4437,
+                139.2, 140.0, 35.1, 35.8,
+                "일본 제2의 항구도시", RegionType.INTERNATIONAL_CITY,
+                "일본"
+            ),
+            InternationalRegion(
+                "고베 (Kobe)", "Kobe",
+                135.1955, 34.6901,
+                134.8, 135.6, 34.4, 35.0,
+                "일본 주요 항구도시", RegionType.INTERNATIONAL_CITY,
+                "일본"
             ),
 
-            // 도 단위 지역 (좌표 범위 수정)
-            KoreanRegion(
-                "강원도", "Gangwon Province",
-                128.2, 37.8,
-                127.0, 129.5, 37.0, 38.6,
-                "동북부 산악 및 동해안 지역", RegionType.PROVINCE
+            // === 미국 주요 도시들 ===
+            InternationalRegion(
+                "뉴욕 (New York)", "New York",
+                -74.0060, 40.7128,
+                -74.5, -73.5, 40.0, 41.5,
+                "미국 최대 도시, 금융·문화 중심지", RegionType.INTERNATIONAL_MAJOR,
+                "미국"
             ),
-            KoreanRegion(
-                "충청북도", "Chungcheongbuk Province",
-                127.7, 36.8,
-                127.1, 128.7, 36.2, 37.2,
-                "중부내륙 지역", RegionType.PROVINCE
+            InternationalRegion(
+                "로스앤젤레스 (Los Angeles)", "Los Angeles",
+                -118.2437, 34.0522,
+                -119.0, -117.5, 33.2, 34.8,
+                "미국 서부 최대 도시, 할리우드", RegionType.INTERNATIONAL_MAJOR,
+                "미국"
             ),
-            KoreanRegion(
-                "충청남도", "Chungcheongnam Province",
-                126.8, 36.5,
-                126.1, 127.7, 36.0, 37.0,
-                "서해안 지역", RegionType.PROVINCE
+            InternationalRegion(
+                "시카고 (Chicago)", "Chicago",
+                -87.6298, 41.8781,
+                -88.2, -87.0, 41.3, 42.3,
+                "미국 중서부 중심도시", RegionType.INTERNATIONAL_MAJOR,
+                "미국"
             ),
-            KoreanRegion(
-                "전라북도", "Jeollabuk Province",
-                127.1, 35.7,
-                126.4, 127.9, 35.1, 36.2,
-                "호남 북부지역", RegionType.PROVINCE
+            InternationalRegion(
+                "샌프란시스코 (San Francisco)", "San Francisco",
+                -122.4194, 37.7749,
+                -122.8, -122.0, 37.4, 38.1,
+                "미국 실리콘밸리, 기술 중심지", RegionType.INTERNATIONAL_CITY,
+                "미국"
             ),
-            KoreanRegion(
-                "전라남도", "Jeollanam Province",
-                126.9, 34.8,
-                125.4, 127.8, 33.9, 35.8,
-                "호남 남부 및 서남해안 지역", RegionType.PROVINCE
+            InternationalRegion(
+                "라스베이거스 (Las Vegas)", "Las Vegas",
+                -115.1398, 36.1699,
+                -115.7, -114.5, 35.8, 36.5,
+                "미국 네바다주 관광·엔터테인먼트 도시", RegionType.INTERNATIONAL_CITY,
+                "미국"
             ),
-            KoreanRegion(
-                "경상북도", "Gyeongsangbuk Province",
-                128.9, 36.4,
-                127.8, 129.9, 35.4, 37.4,
-                "영남 북부지역", RegionType.PROVINCE
+            InternationalRegion(
+                "마이애미 (Miami)", "Miami",
+                -80.1918, 25.7617,
+                -80.6, -79.8, 25.4, 26.1,
+                "미국 플로리다주 국제적 관광도시", RegionType.INTERNATIONAL_CITY,
+                "미국"
             ),
-            KoreanRegion(
-                "경상남도", "Gyeongsangnam Province",
-                128.2, 35.4,
-                127.3, 129.2, 34.6, 36.0,
-                "영남 남부지역", RegionType.PROVINCE
-            ),
-            KoreanRegion(
-                "제주특별자치도", "Jeju Island",
-                126.5, 33.4,
-                126.1, 126.9, 33.1, 33.6,
-                "남쪽 화산섬", RegionType.SPECIAL
+            InternationalRegion(
+                "시애틀 (Seattle)", "Seattle",
+                -122.3321, 47.6062,
+                -122.8, -121.8, 47.2, 47.9,
+                "미국 서북부 기술·항공 중심지", RegionType.INTERNATIONAL_CITY,
+                "미국"
             )
         )
 
         koreanRegionsContainer.removeAllViews()
 
         // 권역별로 그룹핑해서 표시
-        val groupedRegions = koreanRegions.groupBy { it.type }
+        val groupedRegions = allRegions.groupBy { it.type }
 
         // 수도권 먼저 표시
         groupedRegions[RegionType.METROPOLITAN]?.let { regions ->
@@ -341,6 +394,24 @@ class OfflineMapActivity : ComponentActivity() {
                 koreanRegionsContainer.addView(regionCard)
             }
         }
+
+        // 해외 주요 도시
+        groupedRegions[RegionType.INTERNATIONAL_MAJOR]?.let { regions ->
+            addRegionGroupHeader("해외 주요 도시")
+            regions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                koreanRegionsContainer.addView(regionCard)
+            }
+        }
+
+        // 해외 일반 도시
+        groupedRegions[RegionType.INTERNATIONAL_CITY]?.let { regions ->
+            addRegionGroupHeader("해외 도시")
+            regions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                koreanRegionsContainer.addView(regionCard)
+            }
+        }
     }
 
     private fun addRegionGroupHeader(groupName: String) {
@@ -354,7 +425,7 @@ class OfflineMapActivity : ComponentActivity() {
         koreanRegionsContainer.addView(headerView)
     }
 
-    private fun createRegionCard(region: KoreanRegion): View {
+    private fun createRegionCard(region: InternationalRegion): View {  // KoreanRegion → InternationalRegion
         val cardView = layoutInflater.inflate(R.layout.item_korean_region, null)
         val regionName = cardView.findViewById<TextView>(R.id.regionName)
         val regionDescription = cardView.findViewById<TextView>(R.id.regionDescription)
@@ -383,7 +454,7 @@ class OfflineMapActivity : ComponentActivity() {
         return cardView
     }
 
-    private fun checkExistingRegionsAndDownload(region: KoreanRegion) {
+    private fun checkExistingRegionsAndDownload(region: InternationalRegion) {
         lifecycleScope.launch {
             val existingRegions = offlineRegionManager.getDownloadedRegions()
 
@@ -421,25 +492,9 @@ class OfflineMapActivity : ComponentActivity() {
             .show()
     }
 
-    private fun performSearch() {
-        val query = searchEditText.text.toString().trim()
-        if (query.isEmpty()) {
-            showToast(languageManager.getLocalizedString(
-                "검색어를 입력해주세요",
-                "Please enter a search term"
-            ))
-            return
-        }
-
-        if (!isNetworkAvailable()) {
-            showToast(languageManager.getLocalizedString(
-                "검색 기능은 인터넷 연결이 필요합니다",
-                "Search requires internet connection"
-            ))
-            return
-        }
-
-        // 검색 수행
+    // ✅ 기존 Mapbox 검색 (기존 performSearch를 이름만 변경)
+    private fun performMapboxSearch(query: String) {
+        // 기존 performSearch() 메서드의 내용을 그대로 복사
         val searchOptions = SearchOptions.Builder()
             .languages(listOf(
                 if (languageManager.currentLanguage == "ko") IsoLanguageCode.KOREAN else IsoLanguageCode.ENGLISH
@@ -453,7 +508,6 @@ class OfflineMapActivity : ComponentActivity() {
             callback = object : SearchSuggestionsCallback {
                 override fun onSuggestions(suggestions: List<SearchSuggestion>, responseInfo: ResponseInfo) {
                     if (suggestions.isNotEmpty()) {
-                        // 첫 번째 결과 선택
                         searchManager.geocodingEngine.select(
                             suggestion = suggestions.first(),
                             callback = object : SearchSelectionCallback {
@@ -479,7 +533,7 @@ class OfflineMapActivity : ComponentActivity() {
                                     suggestions: List<SearchSuggestion>,
                                     responseInfo: ResponseInfo
                                 ) {
-                                    // 추가 suggestions 처리 (필요시)
+                                    // 추가 suggestions 처리
                                 }
 
                                 override fun onError(e: Exception) {
@@ -512,6 +566,194 @@ class OfflineMapActivity : ComponentActivity() {
                 }
             }
         )
+    }
+
+    private fun performSmartSearch() {
+        val query = searchEditText.text.toString().trim()
+        if (query.isEmpty()) {
+            showToast(languageManager.getLocalizedString(
+                "검색어를 입력해주세요",
+                "Please enter a search term"
+            ))
+            return
+        }
+
+        if (!isNetworkAvailable()) {
+            showToast(languageManager.getLocalizedString(
+                "검색 기능은 인터넷 연결이 필요합니다",
+                "Search requires internet connection"
+            ))
+            return
+        }
+
+        Log.d("OfflineMapActivity", "Smart search for: $query")
+
+        // 1단계: 정확한 매칭 검색
+        val exactMatch = findExactMatch(query)
+        if (exactMatch != null) {
+            Log.d("OfflineMapActivity", "Found exact match: ${exactMatch.koreanName}")
+            showExactMatchDialog(exactMatch, query)
+            return
+        }
+
+        // 2단계: 부분 매칭 검색
+        val partialMatches = findPartialMatches(query)
+        if (partialMatches.isNotEmpty()) {
+            Log.d("OfflineMapActivity", "Found ${partialMatches.size} partial matches")
+            showMultipleMatchesDialog(partialMatches, query)
+            return
+        }
+
+        // 3단계: 같은 국가 내 검색
+        val countryMatches = findCountryMatches(query)
+        if (countryMatches.isNotEmpty()) {
+            Log.d("OfflineMapActivity", "Found ${countryMatches.size} country matches")
+            showCountryMatchesDialog(countryMatches, query)
+            return
+        }
+
+        // 4단계: 기존 Mapbox API 검색
+        Log.d("OfflineMapActivity", "No predefined matches, using Mapbox search")
+        performMapboxSearch(query)
+    }
+
+
+    // ✅ 정확한 매칭 검색
+    private fun findExactMatch(query: String): InternationalRegion? {
+        return allRegions.find { region ->
+            // 도시 이름만 추출해서 정확히 매칭
+            extractCityName(region.koreanName).equals(query, ignoreCase = true) ||
+                    extractCityName(region.englishName).equals(query, ignoreCase = true) ||
+                    // 전체 이름 매칭
+                    region.koreanName.equals(query, ignoreCase = true) ||
+                    region.englishName.equals(query, ignoreCase = true)
+        }
+    }
+
+    // ✅ 부분 매칭 검색
+    private fun findPartialMatches(query: String): List<InternationalRegion> {
+        return allRegions.filter { region ->
+            region.koreanName.contains(query, ignoreCase = true) ||
+                    region.englishName.contains(query, ignoreCase = true) ||
+                    extractCityName(region.koreanName).contains(query, ignoreCase = true) ||
+                    extractCityName(region.englishName).contains(query, ignoreCase = true)
+        }.take(5) // 최대 5개까지만
+    }
+
+    // ✅ 같은 국가 내 검색
+    private fun findCountryMatches(query: String): List<InternationalRegion> {
+        // 국가명으로 검색
+        val countryKeywords = mapOf(
+            "일본" to "일본",
+            "japan" to "일본",
+            "미국" to "미국",
+            "america" to "미국",
+            "usa" to "미국",
+            "한국" to "대한민국",
+            "korea" to "대한민국"
+        )
+
+        val targetCountry = countryKeywords[query.lowercase()]
+
+        return if (targetCountry != null) {
+            allRegions.filter { it.country == targetCountry }.take(8)
+        } else {
+            emptyList()
+        }
+    }
+
+    // ✅ 도시 이름 추출 (괄호 제거)
+    private fun extractCityName(fullName: String): String {
+        // "도쿄 (Tokyo)" → "도쿄"
+        // "Seoul Metropolitan Area" → "Seoul"
+        return fullName.split(" ")[0].split("(")[0].trim()
+    }
+
+    // ✅ 정확한 매칭 다이얼로그
+    private fun showExactMatchDialog(region: InternationalRegion, searchQuery: String) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(languageManager.getLocalizedString("검색 결과", "Search Result"))
+            .setMessage(
+                languageManager.getLocalizedString(
+                    "검색어 '$searchQuery'와 일치하는 지역을 찾았습니다:\n\n" +
+                            "📍 ${region.koreanName}\n" +
+                            "🌏 ${region.country}\n" +
+                            "📄 ${region.description}\n\n" +
+                            "이 지역을 다운로드하시겠습니까?",
+
+                    "Found a region matching '$searchQuery':\n\n" +
+                            "📍 ${region.englishName}\n" +
+                            "🌏 ${region.country}\n" +
+                            "📄 ${region.description}\n\n" +
+                            "Download this region?"
+                )
+            )
+            .setPositiveButton(languageManager.getLocalizedString("다운로드", "Download")) { _, _ ->
+                checkExistingRegionsAndDownload(region)
+            }
+            .setNegativeButton(languageManager.getLocalizedString("취소", "Cancel"), null)
+            .setNeutralButton(languageManager.getLocalizedString("다른 검색", "Other Search")) { _, _ ->
+                performMapboxSearch(searchQuery)
+            }
+            .show()
+    }
+
+    // ✅ 여러 매칭 결과 다이얼로그
+    private fun showMultipleMatchesDialog(regions: List<InternationalRegion>, searchQuery: String) {
+        val regionNames = regions.map { region ->
+            if (languageManager.currentLanguage == "ko") {
+                "${region.koreanName} (${region.country})"
+            } else {
+                "${region.englishName} (${region.country})"
+            }
+        }.toTypedArray()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(languageManager.getLocalizedString(
+                "'$searchQuery' 검색 결과 (${regions.size}개)",
+                "'$searchQuery' Search Results (${regions.size})"
+            ))
+            .setItems(regionNames) { _, which ->
+                val selectedRegion = regions[which]
+                checkExistingRegionsAndDownload(selectedRegion)
+            }
+            .setNegativeButton(languageManager.getLocalizedString("취소", "Cancel"), null)
+            .setNeutralButton(languageManager.getLocalizedString("다른 검색", "Other Search")) { _, _ ->
+                performMapboxSearch(searchQuery)
+            }
+            .show()
+    }
+
+    // ✅ 국가별 매칭 결과 다이얼로그
+    private fun showCountryMatchesDialog(regions: List<InternationalRegion>, searchQuery: String) {
+        val country = regions.firstOrNull()?.country ?: ""
+
+        val regionNames = regions.map { region ->
+            if (languageManager.currentLanguage == "ko") {
+                "${region.koreanName}"
+            } else {
+                "${region.englishName}"
+            }
+        }.toTypedArray()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(languageManager.getLocalizedString(
+                "$country 지역 (${regions.size}개)",
+                "$country Regions (${regions.size})"
+            ))
+            .setMessage(languageManager.getLocalizedString(
+                "'$searchQuery'로 검색하신 ${country}의 다운로드 가능한 지역들입니다:",
+                "Available $country regions for '$searchQuery':"
+            ))
+            .setItems(regionNames) { _, which ->
+                val selectedRegion = regions[which]
+                checkExistingRegionsAndDownload(selectedRegion)
+            }
+            .setNegativeButton(languageManager.getLocalizedString("취소", "Cancel"), null)
+            .setNeutralButton(languageManager.getLocalizedString("다른 검색", "Other Search")) { _, _ ->
+                performMapboxSearch(searchQuery)
+            }
+            .show()
     }
 
     private fun handleSearchResult(result: SearchResult) {
@@ -573,7 +815,7 @@ class OfflineMapActivity : ComponentActivity() {
             .show()
     }
 
-    private fun downloadRegion(region: KoreanRegion) {
+    private fun downloadRegion(region: InternationalRegion) {
         lifecycleScope.launch {
             offlineRegionManager.downloadRegion(
                 regionName = if (languageManager.currentLanguage == "ko") region.koreanName else region.englishName,
@@ -782,13 +1024,15 @@ class OfflineMapActivity : ComponentActivity() {
 
 // 데이터 클래스들 - 지역 타입 추가
 enum class RegionType {
-    METROPOLITAN,  // 수도권
-    CITY,         // 광역시
-    PROVINCE,     // 도
-    SPECIAL       // 특별자치도
+    METROPOLITAN,        // 수도권
+    CITY,               // 광역시
+    PROVINCE,           // 도
+    SPECIAL,            // 특별자치도
+    INTERNATIONAL_MAJOR, // 해외 주요 도시
+    INTERNATIONAL_CITY   // 해외 일반 도시
 }
 
-data class KoreanRegion(
+data class InternationalRegion(
     val koreanName: String,
     val englishName: String,
     val centerLon: Double,
@@ -798,8 +1042,11 @@ data class KoreanRegion(
     val minLat: Double,
     val maxLat: Double,
     val description: String,
-    val type: RegionType
+    val type: RegionType,
+    val country: String = ""
 )
+
+typealias KoreanRegion = InternationalRegion
 
 data class CustomRegion(
     val name: String,

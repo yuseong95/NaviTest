@@ -176,9 +176,7 @@ class OfflineTileManager(
         }
     }
 
-    /**
-     * 초기 지역 메타데이터 저장
-     */
+    // 초기 지역 메타데이터 저장
     private fun saveInitialRegionMetadata() {
         try {
             val prefs = context.getSharedPreferences("offline_regions_meta", Context.MODE_PRIVATE)
@@ -197,9 +195,7 @@ class OfflineTileManager(
         }
     }
 
-    /**
-     * 수도권 지역 업데이트 (기존 사용자용)
-     */
+    // 수도권 지역 업데이트 (기존 사용자용)
     fun updateToMetropolitanArea() {
         Log.d("OfflineTiles", "Updating existing regions to metropolitan area")
 
@@ -238,9 +234,7 @@ class OfflineTileManager(
         }
     }
 
-    /**
-     * 현재 다운로드된 지역이 수도권 통합 지역인지 확인
-     */
+    // 현재 다운로드된 지역이 수도권 통합 지역인지 확인
     fun hasMetropolitanArea(callback: (Boolean) -> Unit) {
         tileStore.getAllTileRegions { expected ->
             if (expected.isValue) {
@@ -256,9 +250,7 @@ class OfflineTileManager(
         }
     }
 
-    /**
-     * 리소스 정리
-     */
+    // 리소스 정리
     fun cleanup() {
         Log.d("OfflineTiles", "OfflineTileManager cleanup completed")
     }

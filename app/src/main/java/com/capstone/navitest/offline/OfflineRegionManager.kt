@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.capstone.navitest.R
 import com.capstone.navitest.ui.LanguageManager
+import com.mapbox.common.Cancelable
 import com.mapbox.common.TileRegionLoadOptions
 import com.mapbox.common.TileRegionLoadProgress
 import com.mapbox.common.TileStore
@@ -22,7 +23,7 @@ import kotlin.coroutines.resume
 
 class OfflineRegionManager(
     private val context: Context,
-    private val languageManager: LanguageManager
+    private val languageManager: LanguageManager,
 ) {
     private val tileStore: TileStore
     private val offlineManager: OfflineManager
@@ -30,6 +31,9 @@ class OfflineRegionManager(
     private var isDownloading = false
     private var currentDownloadRegionName: String? = null
     private var isCancelled = false
+
+    // 현재 다운로드의 Cancelable 객체 저장
+    private var currentDownloadCancelable: Cancelable? = null
 
     // SharedPreferences for metadata storage
     private val prefs = context.getSharedPreferences("offline_regions_meta", Context.MODE_PRIVATE)
@@ -54,9 +58,7 @@ class OfflineRegionManager(
         downloadProgressCallback = callback
     }
 
-    /**
-     * 지역 다운로드 (기존 지역 삭제 후 새 지역 다운로드)
-     */
+    // 지역 다운로드 (기존 지역 삭제 후 새 지역 다운로드)
     suspend fun downloadRegion(
         regionName: String,
         minLon: Double,
@@ -118,9 +120,7 @@ class OfflineRegionManager(
         }
     }
 
-    /**
-     * 실제 지역 다운로드 수행
-     */
+    // 실제 지역 다운로드 수행
     private suspend fun downloadRegionInternal(
         regionName: String,
         minLon: Double,
@@ -193,11 +193,15 @@ class OfflineRegionManager(
             // 다운로드 시작
             Log.d("OfflineRegionManager", "Starting tile region download: $regionName")
 
-            tileStore.loadTileRegion(
+            // Cancelable 객체 저장
+            val cancelable = tileStore.loadTileRegion(
                 regionName,
                 loadOptions,
                 progressCallback
             ) { expected ->
+                // 다운로드 완료 시 Cancelable 정리
+                currentDownloadCancelable = null
+
                 if (isCancelled) {
                     Log.d("OfflineRegionManager", "Download completed but was cancelled")
                     continuation.resume(false)
@@ -219,29 +223,32 @@ class OfflineRegionManager(
                 }
             }
 
-            // 취소 처리
+            // 현재 다운로드의 Cancelable 저장
+            currentDownloadCancelable = cancelable
+
+            // 코루틴 취소 시 실제 Mapbox 다운로드도 취소
             continuation.invokeOnCancellation {
                 Log.d("OfflineRegionManager", "Download coroutine cancelled: $regionName")
                 isCancelled = true
+                // 실제 네이티브 다운로드 취소
+                cancelable.cancel()
+                currentDownloadCancelable = null
             }
 
         } catch (e: Exception) {
             Log.e("OfflineRegionManager", "Error in downloadRegionInternal", e)
+            currentDownloadCancelable = null  // 에러 시에도 정리
             continuation.resume(false)
         }
     }
 
-    /**
-     * 좌표 유효성 검사
-     */
+    // 좌표 유효성 검사
     private fun isValidCoordinates(minLon: Double, maxLon: Double, minLat: Double, maxLat: Double): Boolean {
         return minLon >= -180 && maxLon <= 180 && minLat >= -90 && maxLat <= 90 &&
                 minLon < maxLon && minLat < maxLat
     }
 
-    /**
-     * 취소된 다운로드 정리
-     */
+    // 취소된 다운로드 정리
     private suspend fun cleanupCancelledDownload(regionName: String) {
         Log.d("OfflineRegionManager", "Cleaning up cancelled download: $regionName")
 
@@ -253,18 +260,15 @@ class OfflineRegionManager(
         }
     }
 
-    /**
-     * 다운로드 상태 초기화
-     */
+    // 다운로드 상태 초기화
     private fun resetDownloadState() {
         isDownloading = false
         isCancelled = false
         currentDownloadRegionName = null
+        currentDownloadCancelable = null
     }
 
-    /**
-     * 모든 기존 지역 삭제
-     */
+    //모든 기존 지역 삭제
     private suspend fun deleteAllRegions(): Boolean = suspendCancellableCoroutine { continuation ->
         try {
             tileStore.getAllTileRegions { expected ->
@@ -317,9 +321,7 @@ class OfflineRegionManager(
         }
     }
 
-    /**
-     * 다운로드된 지역 목록 가져오기
-     */
+    // 다운로드 지역 메타 데이터 저장
     suspend fun getDownloadedRegions(): List<DownloadedRegion> = suspendCancellableCoroutine { continuation ->
         try {
             tileStore.getAllTileRegions { expected ->
@@ -348,9 +350,7 @@ class OfflineRegionManager(
         }
     }
 
-    /**
-     * 지역 메타데이터 저장
-     */
+    // 지역 메타 데이터 저장
     private fun saveRegionMetadata(regionName: String) {
         val currentTime = System.currentTimeMillis()
         val estimatedSize = getEstimatedRegionSizeByName(regionName)
@@ -364,9 +364,7 @@ class OfflineRegionManager(
         Log.d("OfflineRegionManager", "Saved metadata for region: $regionName")
     }
 
-    /**
-     * 지역 메타데이터 조회
-     */
+    // 지역 메타 데이터 조회
     private fun getRegionMetadata(regionName: String): RegionMetadata {
         val downloadTime = prefs.getLong("${regionName}_download_time", System.currentTimeMillis())
         val estimatedSize = prefs.getLong("${regionName}_estimated_size", getEstimatedRegionSizeByName(regionName))
@@ -377,9 +375,7 @@ class OfflineRegionManager(
         )
     }
 
-    /**
-     * 지역 메타데이터 삭제
-     */
+    // 지역 메타 데이터 삭제
     private fun removeRegionMetadata(regionName: String) {
         prefs.edit().apply {
             remove("${regionName}_download_time")
@@ -390,17 +386,13 @@ class OfflineRegionManager(
         Log.d("OfflineRegionManager", "Removed metadata for region: $regionName")
     }
 
-    /**
-     * 모든 지역 메타데이터 삭제
-     */
+    // 모든 지역 메타데이터 삭제
     private fun clearAllRegionMetadata() {
         prefs.edit().clear().apply()
         Log.d("OfflineRegionManager", "Cleared all region metadata")
     }
 
-    /**
-     * 특정 지역 삭제
-     */
+    // 특정 지역 삭제
     suspend fun deleteRegion(regionId: String): Boolean = suspendCancellableCoroutine { continuation ->
         try {
             Log.d("OfflineRegionManager", "Deleting region: $regionId")
@@ -425,12 +417,19 @@ class OfflineRegionManager(
         }
     }
 
-    /**
-     * 현재 다운로드 취소
-     */
+    // 현재 다운로드 취소
     fun cancelCurrentDownload() {
         if (isDownloading && currentDownloadRegionName != null) {
             Log.d("OfflineRegionManager", "Cancelling download: $currentDownloadRegionName")
+
+            // 실제 Mapbox 다운로드 즉시 취소
+            currentDownloadCancelable?.let { cancelable ->
+                Log.d("OfflineRegionManager", "Calling native cancel()")
+                cancelable.cancel()
+            }
+            currentDownloadCancelable = null
+
+            // 플래그 설정 (기존 로직 유지)
             isCancelled = true
 
             // 콜백으로 취소 알림
@@ -445,32 +444,22 @@ class OfflineRegionManager(
         }
     }
 
-    /**
-     * 다운로드 상태 확인
-     */
+    // 다운로드 상태 확인
     fun isDownloading(): Boolean = isDownloading
 
-    /**
-     * 현재 다운로드 중인 지역명 반환
-     */
+    // 현재 다운로드 중인 지역명 반환
     fun getCurrentDownloadRegion(): String? = currentDownloadRegionName
 
-    /**
-     * 취소 상태 확인
-     */
+    // 취소 상태 확인
     fun isCancelled(): Boolean = isCancelled
 
-    /**
-     * 날짜 포맷팅
-     */
+    // 날짜 포캣팅
     private fun formatDate(date: Date): String {
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         return formatter.format(date)
     }
 
-    /**
-     * 파일 크기 포맷팅
-     */
+    // 파일 크기 포맷팅
     private fun formatSize(bytes: Long): String {
         return when {
             bytes < 1024 -> "$bytes B"
@@ -480,9 +469,7 @@ class OfflineRegionManager(
         }
     }
 
-    /**
-     * 지역 크기 추정 (수정된 크기 정보)
-     */
+    // 지역 크기 추정
     private fun getEstimatedRegionSizeByName(regionName: String): Long {
         // 지역별 추정 크기 (MB 단위를 바이트로 변환)
         val estimatedSizeMB = when {
@@ -510,15 +497,22 @@ class OfflineRegionManager(
             regionName.contains("gyeongnam", ignoreCase = true) || regionName.contains("경상남", ignoreCase = true) -> 240L
             regionName.contains("jeju", ignoreCase = true) || regionName.contains("제주", ignoreCase = true) -> 80L
 
-            // 해외 주요 도시들 (검색으로 다운로드 가능)
-            regionName.contains("tokyo", ignoreCase = true) || regionName.contains("도쿄", ignoreCase = true) -> 300L
-            regionName.contains("osaka", ignoreCase = true) || regionName.contains("오사카", ignoreCase = true) -> 250L
-            regionName.contains("beijing", ignoreCase = true) || regionName.contains("베이징", ignoreCase = true) -> 280L
-            regionName.contains("shanghai", ignoreCase = true) || regionName.contains("상하이", ignoreCase = true) -> 320L
-            regionName.contains("new york", ignoreCase = true) || regionName.contains("뉴욕", ignoreCase = true) -> 400L
-            regionName.contains("los angeles", ignoreCase = true) -> 350L
-            regionName.contains("london", ignoreCase = true) || regionName.contains("런던", ignoreCase = true) -> 300L
-            regionName.contains("paris", ignoreCase = true) || regionName.contains("파리", ignoreCase = true) -> 250L
+            // === 일본 도시들 추가 ===
+            regionName.contains("tokyo", ignoreCase = true) || regionName.contains("도쿄", ignoreCase = true) -> 350L
+            regionName.contains("osaka", ignoreCase = true) || regionName.contains("오사카", ignoreCase = true) -> 280L
+            regionName.contains("kyoto", ignoreCase = true) || regionName.contains("교토", ignoreCase = true) -> 200L
+            regionName.contains("nagoya", ignoreCase = true) || regionName.contains("나고야", ignoreCase = true) -> 250L
+            regionName.contains("yokohama", ignoreCase = true) || regionName.contains("요코하마", ignoreCase = true) -> 220L
+            regionName.contains("kobe", ignoreCase = true) || regionName.contains("고베", ignoreCase = true) -> 180L
+
+            // === 미국 도시들 추가 ===
+            regionName.contains("new york", ignoreCase = true) || regionName.contains("뉴욕", ignoreCase = true) -> 450L
+            regionName.contains("los angeles", ignoreCase = true) || regionName.contains("로스앤젤레스", ignoreCase = true) -> 400L
+            regionName.contains("chicago", ignoreCase = true) || regionName.contains("시카고", ignoreCase = true) -> 350L
+            regionName.contains("san francisco", ignoreCase = true) || regionName.contains("샌프란시스코", ignoreCase = true) -> 250L
+            regionName.contains("las vegas", ignoreCase = true) || regionName.contains("라스베이거스", ignoreCase = true) -> 200L
+            regionName.contains("miami", ignoreCase = true) || regionName.contains("마이애미", ignoreCase = true) -> 180L
+            regionName.contains("seattle", ignoreCase = true) || regionName.contains("시애틀", ignoreCase = true) -> 220L
 
             // 기타
             regionName.length > 20 -> 300L // 긴 이름 (주로 해외 지역)
@@ -528,9 +522,7 @@ class OfflineRegionManager(
         return estimatedSizeMB * 1024 * 1024 // MB를 바이트로 변환
     }
 
-    /**
-     * 리소스 정리
-     */
+    // 리소스 정리
     fun cleanup() {
         Log.d("OfflineRegionManager", "Cleaning up OfflineRegionManager")
 
@@ -544,9 +536,8 @@ class OfflineRegionManager(
     }
 }
 
-/**
- * 지역 메타데이터를 담는 데이터 클래스
- */
+// 지역 메타데이터를 담는 데이터 클래스
+
 data class RegionMetadata(
     val downloadDate: String,
     val estimatedSize: String
