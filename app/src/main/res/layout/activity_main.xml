@@ -247,6 +247,7 @@
             app:fabSize="mini"
             app:tint="@color/fab_icon" />
 
+        <!-- 녹음시작 버튼 (Test용) -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/testWhisperButton"
             android:layout_width="wrap_content"
@@ -254,6 +255,7 @@
             android:layout_marginBottom="16dp"
             android:layout_marginEnd="16dp"
             android:layout_gravity="bottom|end"
+            android:src="@drawable/ic_mic"
             android:contentDescription="Whisper 테스트 시작"
             android:visibility="visible"
             app:backgroundTint="@color/fab_background"
@@ -408,5 +410,23 @@
 
     <!-- 내비게이션 종료 확인 패널 -->
     <include layout="@layout/navigation_exit_panel" />
+
+    <!-- 로딩화면 애니메이션 추가를 위한 아이콘 -->
+    <FrameLayout
+        android:id="@+id/splashOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/white"
+        android:gravity="center"
+        android:elevation="1000dp">
+
+        <ImageView
+            android:id="@+id/splashIcon"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:src="@mipmap/ic_launcher_off2" />
+    </FrameLayout>
+
 
 </RelativeLayout>

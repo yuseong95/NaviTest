@@ -15,25 +15,28 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:icon="@mipmap/ic_launcher_off2"
+        android:label="Off Qual Bot"
+        android:roundIcon="@mipmap/ic_launcher_off2_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light"
+        android:theme="@style/Theme.OffQualBot"
         tools:targetApi="31">
+
+         <!-- 메인 기능 화면 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
+            android:label="Off Qual Bot"
             android:theme="@style/Theme.AppCompat.Light"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout">
+            <!-- ✅ 앱 시작 진입점 명시 -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- 오프라인 맵 화면 -->
         <activity
             android:name=".offline.OfflineMapActivity"
             android:exported="false"
@@ -47,5 +50,4 @@
         </activity>
 
     </application>
-
 </manifest>

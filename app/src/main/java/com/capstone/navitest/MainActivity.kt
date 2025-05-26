@@ -48,10 +48,17 @@ import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 //whisper
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
+import android.view.animation.Animation
+import android.view.animation.AnimationUtils
+import android.widget.ImageView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.capstone_whisper.WhisperService
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+
+//로딩화면
+import androidx.core.splashscreen.SplashScreen
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 import java.io.File
 
@@ -179,8 +186,23 @@ class MainActivity : ComponentActivity() {
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen().setKeepOnScreenCondition { false } // 시스템 splash 바로 넘김
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        val splashOverlay = findViewById<View>(R.id.splashOverlay)
+        val splashIcon = findViewById<ImageView>(R.id.splashIcon)
+
+        val zoomAnim = AnimationUtils.loadAnimation(this, R.anim.zoom_in_out)
+        splashIcon.startAnimation(zoomAnim)
+
+        zoomAnim.setAnimationListener(object : Animation.AnimationListener {
+            override fun onAnimationEnd(animation: Animation?) {
+                splashOverlay.visibility = View.GONE
+            }
+            override fun onAnimationStart(animation: Animation?) {}
+            override fun onAnimationRepeat(animation: Animation?) {}
+        })
 
         // 뒤로가기 콜백 등록
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
