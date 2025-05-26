@@ -276,8 +276,25 @@ class MainActivity : ComponentActivity() {
         whisperService = WhisperService(this) { result ->
             runOnUiThread {
                 // 텍스트 토스트로 보여주는 부분
-                Toast.makeText(this, "📝 인식 결과: $result", Toast.LENGTH_LONG).show()
                 Log.d("WhisperResult", result)
+                
+                /*if(result.equals("cancel")){
+                    navigationManager.cancelNavigation()
+                } else if(result.equals("start")){
+                    navigationManager.startNavigation()
+                }
+
+                // 라마한테 주고 result 받아오기  LocationData.getLocationPointFromText(result) 대신
+                // 텍스트에 맞는 위치정보 가져옴
+                val destinationPoint = LocationData.getLocationPointFromText(result)
+
+                 if (destinationPoint != null) { // 위치 정보 있으면 목적지 설정
+                    navigationManager.setDestination(destinationPoint)
+                    Log.d("MainActivity", "🎯 목적지 설정 완료: $destinationPoint")
+                } else {
+                    Toast.makeText(this, "❌ 알 수 없는 목적지: $result", Toast.LENGTH_SHORT).show()
+                }*/
+
             }
         }
         whisperService?.start()
@@ -304,10 +321,15 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 //Toast.makeText(this, "📝 인식 결과: $result", Toast.LENGTH_LONG).show()
                 Log.d("WhisperResult", result)
+
                 // 텍스트에 맞는 위치정보 가져옴
                 val destinationPoint = LocationData.getLocationPointFromText(result)
-                // 위치 정보 있으면 목적지 설정
-                if (destinationPoint != null) {
+
+                if(destinationPoint?.longitude() == 0.0 && destinationPoint.latitude() == 0.0){
+                    navigationManager.cancelNavigation()
+                } else if(destinationPoint?.longitude() == 1000.0 && destinationPoint.latitude() == 1000.0){
+                    navigationManager.startNavigation()
+                } else if (destinationPoint != null) { // 위치 정보 있으면 목적지 설정
                     navigationManager.setDestination(destinationPoint)
                     Log.d("MainActivity", "🎯 목적지 설정 완료: $destinationPoint")
                 } else {

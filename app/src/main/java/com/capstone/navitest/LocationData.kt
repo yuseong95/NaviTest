@@ -9,6 +9,8 @@ import java.io.InputStreamReader
 
 object LocationData {
     private val locationMap = mapOf(
+        "cancel" to Point.fromLngLat(0.0,0.0),
+        "start" to Point.fromLngLat(1000.0,1000.0),
         "hansung university" to Point.fromLngLat(127.0068, 37.5826),
         "seoul station" to Point.fromLngLat(126.9707, 37.5547),
         "gangnam station" to Point.fromLngLat(127.0276, 37.4979),
@@ -49,7 +51,10 @@ object LocationData {
         }?.key
 
         // 2. 있으면 locationMap에서 가져옴
-        if (normalized != null) {
+        if(normalized.equals("cancel")){
+            return locationMap[normalized]
+        }
+        else if (normalized != null) {
             Log.d("whisperDebug", normalized)
             Log.d("whisperDebug", "${locationMap[normalized]}" )
             return locationMap[normalized]
