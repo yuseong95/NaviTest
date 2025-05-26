@@ -23,6 +23,7 @@ class WhisperService(
     private val isRecording = AtomicBoolean(false)
     private var wakeWordDetector: PorcupineWakeWordDetector? = null
 
+    //porcupine 사용 시 사용하는 함수
     fun start() {
         wakeWordDetector = PorcupineWakeWordDetector(
             context = context,
@@ -36,6 +37,8 @@ class WhisperService(
         )
         wakeWordDetector?.start()
     }
+
+    // 버튼 사용 시 사용하는 start()
     fun startWithoutWakeWord() {
         if (isRecording.compareAndSet(false, true)) {
             Toast.makeText(context, "🎤 테스트 인식 시작 (Porcupine 없이)", Toast.LENGTH_SHORT).show()
@@ -78,8 +81,8 @@ class WhisperService(
     private fun startRecordingAndTranscribe() {
         recorder.startRecording()
 
-        val silenceThreshold = 0.05f
-        val silenceLimit = 1500L
+        val silenceThreshold = 0.05f    // 입력 감도 설정 0.05f - 0.005f 사이에서 조절
+        val silenceLimit = 1500L        // 무음 감지 시간
         var lastSoundTime = System.currentTimeMillis()
         var alreadyStopped = false
 
@@ -110,14 +113,7 @@ class WhisperService(
             }
         }
     }
-    private fun calculateRms(buffer: ShortArray, readSize: Int): Float {
-        var sum = 0.0
-        for (i in 0 until readSize) {
-            val sample = buffer[i] / 32768.0f
-            sum += sample * sample
-        }
-        return sqrt(sum / readSize).toFloat()
-    }
+
     private fun isSilent(buffer: ShortArray, readSize: Int, threshold: Float): Boolean {
         var sum = 0.0
         for (i in 0 until readSize) {

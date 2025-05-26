@@ -229,10 +229,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        //normalization.json파싱
+        //normalization.json파싱 (하드코딩 시 사용하는 위치정보 json)
         LocationData.initialize(this)
         
-        // WhisperService 초기화 및 마이크 권한 요청
+        // WhisperService 초기화 및 마이크 권한 요청 (porcupine 대기 포함)
         setupWhisperService()
 
         // 메인 액션 버튼 클릭 리스너
@@ -249,7 +249,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /*whisper-------------*/
+    /*whisper-------------------------------------------*/
     private fun setupWhisperService() {
         val launcher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -271,7 +271,7 @@ class MainActivity : ComponentActivity() {
             launcher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
-
+    // porcupine 사용 시 호출 함수
     private fun startWhisperService() {
         whisperService = WhisperService(this) { result ->
             runOnUiThread {
@@ -283,7 +283,7 @@ class MainActivity : ComponentActivity() {
         whisperService?.start()
     }
 
-    // 버튼 클릭 시 호출할 함수
+    // 버튼 클릭 시 호출할 함수 버튼 -> onclick식 호출됨
     private fun startWhisperServiceTestWithPermissionCheck() {
         if (ContextCompat.checkSelfPermission(
                 this,
@@ -296,7 +296,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    //버튼에서 사용하는 위스퍼
+    // 버튼에서 사용하는 위스퍼
     private fun startWhisperServiceTest() {
         Log.d("WhisperTest", "🔊 detect_voice (테스트용)")
 
@@ -324,7 +324,6 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
     }
-
     private fun requestMicrophonePermission() {
         val launcher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -371,7 +370,7 @@ class MainActivity : ComponentActivity() {
 
         //whisper test 버튼
         val testWhisperButton = findViewById<FloatingActionButton>(R.id.testWhisperButton)
-
+        // onclick 시 권한 확인 및 녹음 시작
         testWhisperButton.setOnClickListener {
             Log.d("MainActivity", "🎤 테스트 Whisper 버튼 클릭됨")
             if (checkMicrophonePermission()) {
