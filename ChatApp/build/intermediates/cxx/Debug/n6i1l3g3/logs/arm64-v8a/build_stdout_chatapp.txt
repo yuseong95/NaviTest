@@ -1,0 +1,2 @@
+ninja: Entering directory `C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\.cxx\Debug\n6i1l3g3\arm64-v8a'
+ninja: no work to do.

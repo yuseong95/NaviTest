@@ -7,11 +7,6 @@ plugins {
 android {
     namespace = "com.capstone.navitest"
     compileSdk = 35
-    sourceSets {
-        getByName("main").jniLibs.srcDirs(
-            file("../ChatApp/.cxx/Debug/2j5n46ln/arm64-v8a")
-        )
-    }
 
     defaultConfig {
         applicationId = "com.capstone.navitest"
@@ -23,7 +18,7 @@ android {
         externalNativeBuild {
             cmake {
                 arguments += listOf(
-                    "-DQNN_SDK_ROOT_PATH=C:/Qualcomm/AIStack/QAIRT/2.31.0.250130"
+                    "-DQNN_SDK_ROOT_PATH=C:/Qualcomm/AIStack/QAIRT/2.32.6.250402"
                 )
             }
         }

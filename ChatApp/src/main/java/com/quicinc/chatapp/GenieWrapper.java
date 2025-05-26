@@ -4,12 +4,19 @@
 // ---------------------------------------------------------------------
 package com.quicinc.chatapp;
 
+import android.util.Log;
+
 /**
  * GenieWrapper: Class to connect JNI GenieWrapper and Java code
  */
 public class GenieWrapper {
     static {
-        System.loadLibrary("chatapp");
+        try {
+            System.loadLibrary("chatapp");
+            Log.d("JNI", "✅ chatapp loaded");
+        } catch (UnsatisfiedLinkError e) {
+            Log.e("JNI", "❌ chatapp load failed", e);
+        }
     }
     long genieWrapperNativeHandle;
 

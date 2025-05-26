@@ -12,8 +12,14 @@ package com.capstone.navitest
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
+import android.system.Os
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -37,6 +43,7 @@ import com.mapbox.common.MapboxOptions
 import com.mapbox.common.TileStore
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.extension.style.model.model
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.options.RoutingTilesOptions
 import com.mapbox.navigation.core.MapboxNavigation
@@ -130,6 +137,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                intent.data = Uri.parse("package:" + packageName)
+                startActivity(intent)
+            }
+        }
 
         // ViewModel 초기화
         searchButtonViewModel = ViewModelProvider(this)[SearchButtonViewModel::class.java]
@@ -162,8 +176,6 @@ class MainActivity : ComponentActivity() {
 
         // WhisperService 초기화 및 마이크 권한 요청
         setupWhisperService()
-
-
         // 모델 초기화 (정상 작동 버전) 라마 경로 찾기.
         try {
             configPath = ModelInitializer.initialize(this)
@@ -174,9 +186,10 @@ class MainActivity : ComponentActivity() {
         modelDir = getExternalCacheDir()?.let {
             File(it, "models/llama3_2_3b").absolutePath
         } ?: throw IOException("External cache dir not found")
-        genieWrapper = GenieWrapper(modelDir,configPath)
 
     }
+
+
 
     /*whisper-------------*/
     private fun setupWhisperService() {
@@ -328,6 +341,30 @@ class MainActivity : ComponentActivity() {
         if (::navigationManager.isInitialized) {
             navigationManager.checkNetworkStatus()
         }
+        if (!::genieWrapper.isInitialized) {
+            try {
+                Log.d("MainActivity", "🧠 Trying DSP GenieWrapper...")
+
+                val libDir = applicationContext.applicationInfo.nativeLibraryDir
+                Os.setenv("ADSP_LIBRARY_PATH", libDir, true)
+                Os.setenv("LD_LIBRARY_PATH", libDir, true)
+                Log.d("MainActivity", "✅ Env set: $libDir")
+                // DSP 시도
+                genieWrapper = GenieWrapper(modelDir, configPath)
+                Log.d("MainActivity", "✅ GenieWrapper DSP initialized")
+            } catch (dspException: Exception) {
+                Log.e("MainActivity", "❌ DSP GenieWrapper failed: ${dspException.message}")
+                try {
+                    // fallback JSON 수정 (configPath -> CPU 버전으로 교체)
+                    val cpuConfigPath = configPath.replace("_htp", "_cpu")
+                    genieWrapper = GenieWrapper(modelDir, cpuConfigPath)
+                    Log.d("MainActivity", "✅ GenieWrapper CPU fallback initialized")
+                } catch (cpuException: Exception) {
+                    Log.e("MainActivity", "❌ CPU fallback도 실패: ${cpuException.message}")
+                }
+            }
+        }
+
     }
 
     private fun setupMapboxNavigation() {

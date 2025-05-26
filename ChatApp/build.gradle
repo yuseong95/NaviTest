@@ -9,7 +9,7 @@ plugins {
 // Download QAIRT SDK from https://qpm.qualcomm.com/#/main/tools/details/Qualcomm_AI_Runtime_SDK
 // e.g. "/opt/qcom/aistack/qairt/2.33.0.250327"
 //      "C:\\Qualcomm\\AIStack\\QAIRT\\2.33.0.250327"
-def qnnSDKLocalPath= "C:\\Qualcomm\\AIStack\\QAIRT\\2.31.0.250130"   // <-- Please add QNN SDK root path
+def qnnSDKLocalPath= "C:\\Qualcomm\\AIStack\\QAIRT\\2.32.6.250402"   // <-- Please add QNN SDK root path
 
 // List of model assets
 def models = ["llama3_2_3b"]
@@ -19,7 +19,7 @@ def buildDir = project(":ChatApp").getLayout().getBuildDirectory()
 def libsDir = buildDir.dir("libs")
 
 android {
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         // TODO: use androidMinSDK value from gradle.properties once it updates to 31
@@ -34,11 +34,11 @@ android {
                 arguments "-DQNN_SDK_ROOT_PATH=" + qnnSDKLocalPath
             }
         }
-        /*sourceSets {
+        sourceSets {
             main {
                 jniLibs.srcDir libsDir
             }
-        }*/
+        }
         signingConfig signingConfigs.debug
     }
     buildTypes {
