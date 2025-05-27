@@ -256,7 +256,62 @@ class OfflineMapActivity : ComponentActivity() {
                 "동남권 산업도시", RegionType.CITY,
                 "대한민국"
             ),
-            // 도 지역들도 동일하게... (생략)
+             InternationalRegion(
+                 "강원특별자치도", "Gangwon Province",
+                 128.2016, 37.8228,
+                 127.0, 129.5, 37.0, 38.6,
+                 "산악과 해안의 아름다운 자연", RegionType.PROVINCE,
+                 "대한민국"
+             ),
+             InternationalRegion(
+                 "충청북도", "Chungcheongbuk-do",
+                 127.7294, 36.6354,
+                 127.0, 128.5, 36.0, 37.2,
+                 "내륙 산업과 자연이 조화", RegionType.PROVINCE,
+                 "대한민국"
+             ),
+             InternationalRegion(
+                 "충청남도", "Chungcheongnam-do",
+                 126.8000, 36.5184,
+                 125.7, 127.8, 36.0, 37.0,
+                 "서해안 농업과 공업 중심지", RegionType.PROVINCE,
+                 "대한민국"
+             ),
+             InternationalRegion(
+                 "전북특별자치도", "Jeonbuk Province",
+                 127.1530, 35.7175,
+                 126.4, 127.9, 35.1, 36.2,
+                 "전통문화와 농업의 중심", RegionType.PROVINCE,
+                 "대한민국"
+             ),
+             InternationalRegion(
+                 "전라남도", "Jeollanam-do",
+                 126.9910, 34.8679,
+                 125.4, 127.8, 33.8, 35.4,
+                 "다도해와 농업의 보고", RegionType.PROVINCE,
+                 "대한민국"
+             ),
+             InternationalRegion(
+                 "경상북도", "Gyeongsangbuk-do",
+                 128.8889, 36.4919,
+                 128.0, 129.6, 35.4, 37.2,
+                 "전통과 첨단산업이 공존", RegionType.PROVINCE,
+                 "대한민국"
+             ),
+             InternationalRegion(
+                 "경상남도", "Gyeongsangnam-do",
+                 128.2132, 35.4606,
+                 127.5, 129.2, 34.7, 35.8,
+                 "기계공업과 조선업의 중심", RegionType.PROVINCE,
+                 "대한민국"
+             ),
+             InternationalRegion(
+                 "제주특별자치도", "Jeju Province",
+                 126.5312, 33.4996,
+                 126.1, 126.9, 33.1, 33.9,
+                 "화산섬 관광과 자연의 보고", RegionType.SPECIAL,
+                 "대한민국"
+             ),
 
             // === 일본 주요 도시들 ===
             InternationalRegion(
@@ -492,7 +547,7 @@ class OfflineMapActivity : ComponentActivity() {
             .show()
     }
 
-    // ✅ 기존 Mapbox 검색 (기존 performSearch를 이름만 변경)
+    // 기존 Mapbox 검색 (기존 performSearch를 이름만 변경)
     private fun performMapboxSearch(query: String) {
         // 기존 performSearch() 메서드의 내용을 그대로 복사
         val searchOptions = SearchOptions.Builder()
@@ -618,7 +673,7 @@ class OfflineMapActivity : ComponentActivity() {
     }
 
 
-    // ✅ 정확한 매칭 검색
+    // 정확한 매칭 검색
     private fun findExactMatch(query: String): InternationalRegion? {
         return allRegions.find { region ->
             // 도시 이름만 추출해서 정확히 매칭
@@ -630,7 +685,7 @@ class OfflineMapActivity : ComponentActivity() {
         }
     }
 
-    // ✅ 부분 매칭 검색
+    // 부분 매칭 검색
     private fun findPartialMatches(query: String): List<InternationalRegion> {
         return allRegions.filter { region ->
             region.koreanName.contains(query, ignoreCase = true) ||
@@ -640,7 +695,7 @@ class OfflineMapActivity : ComponentActivity() {
         }.take(5) // 최대 5개까지만
     }
 
-    // ✅ 같은 국가 내 검색
+    // 같은 국가 내 검색
     private fun findCountryMatches(query: String): List<InternationalRegion> {
         // 국가명으로 검색
         val countryKeywords = mapOf(
@@ -662,14 +717,14 @@ class OfflineMapActivity : ComponentActivity() {
         }
     }
 
-    // ✅ 도시 이름 추출 (괄호 제거)
+    // 도시 이름 추출 (괄호 제거)
     private fun extractCityName(fullName: String): String {
         // "도쿄 (Tokyo)" → "도쿄"
         // "Seoul Metropolitan Area" → "Seoul"
         return fullName.split(" ")[0].split("(")[0].trim()
     }
 
-    // ✅ 정확한 매칭 다이얼로그
+    // 정확한 매칭 다이얼로그
     private fun showExactMatchDialog(region: InternationalRegion, searchQuery: String) {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(languageManager.getLocalizedString("검색 결과", "Search Result"))
@@ -698,7 +753,7 @@ class OfflineMapActivity : ComponentActivity() {
             .show()
     }
 
-    // ✅ 여러 매칭 결과 다이얼로그
+    // 여러 매칭 결과 다이얼로그
     private fun showMultipleMatchesDialog(regions: List<InternationalRegion>, searchQuery: String) {
         val regionNames = regions.map { region ->
             if (languageManager.currentLanguage == "ko") {
@@ -724,7 +779,7 @@ class OfflineMapActivity : ComponentActivity() {
             .show()
     }
 
-    // ✅ 국가별 매칭 결과 다이얼로그
+    // 국가별 매칭 결과 다이얼로그
     private fun showCountryMatchesDialog(regions: List<InternationalRegion>, searchQuery: String) {
         val country = regions.firstOrNull()?.country ?: ""
 
