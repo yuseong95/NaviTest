@@ -64,6 +64,11 @@ class OfflineMapActivity : ComponentActivity() {
     // 다운로드 취소를 위한 플래그
     private var isDownloadCancelled = false
 
+    // 필터링 관련 변수 추가
+    private var isFiltering = false
+    private var currentFilter = ""
+    private var originalInternationalRegions: List<InternationalRegion> = emptyList()
+
     enum class OfflineTab {
         KOREAN_REGIONS, WORLD_MAP, DOWNLOADED
     }
@@ -79,6 +84,9 @@ class OfflineMapActivity : ComponentActivity() {
         languageManager = LanguageManager(this)
         offlineRegionManager = OfflineRegionManager(this, languageManager)
         searchManager = SearchManager(this)
+
+        // 지역 데이터 초기화
+        initializeAllRegions()
 
         // UI 초기화
         initializeUI()
@@ -119,6 +127,8 @@ class OfflineMapActivity : ComponentActivity() {
         // 초기 상태 설정
         downloadProgressContainer.visibility = View.GONE
         updateLanguageTexts()
+
+        // 모든 지역 UI 설정
         setupAllRegions()
     }
 
@@ -211,8 +221,93 @@ class OfflineMapActivity : ComponentActivity() {
     }
 
     private fun setupAllRegions() {
-        // 모든 지역을 하나의 리스트로 통합
-         allRegions = listOf(
+        // 한국 지역과 해외 지역 분리
+        val koreanRegions = allRegions.filter { it.country == "대한민국" }
+        val internationalRegions = allRegions.filter { it.country != "대한민국" }
+
+        // 한국 지역 UI 설정
+        setupKoreanRegions(koreanRegions)
+
+        // 전세계 지역 UI 설정
+        setupInternationalRegions(internationalRegions)
+    }
+
+    private fun setupKoreanRegions(regions: List<InternationalRegion>) {
+        koreanRegionsContainer.removeAllViews()
+
+        // 권역별로 그룹핑해서 표시
+        val groupedRegions = regions.groupBy { it.type }
+
+        // 수도권 먼저 표시
+        groupedRegions[RegionType.METROPOLITAN]?.let { regions ->
+            addRegionGroupHeader(koreanRegionsContainer, "수도권")
+            regions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                koreanRegionsContainer.addView(regionCard)
+            }
+        }
+
+        // 광역시
+        groupedRegions[RegionType.CITY]?.let { regions ->
+            addRegionGroupHeader(koreanRegionsContainer, "광역시")
+            regions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                koreanRegionsContainer.addView(regionCard)
+            }
+        }
+
+        // 도 지역
+        groupedRegions[RegionType.PROVINCE]?.let { regions ->
+            addRegionGroupHeader(koreanRegionsContainer, "도 지역")
+            regions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                koreanRegionsContainer.addView(regionCard)
+            }
+        }
+
+        // 특별자치도
+        groupedRegions[RegionType.SPECIAL]?.let { regions ->
+            addRegionGroupHeader(koreanRegionsContainer, "특별자치도")
+            regions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                koreanRegionsContainer.addView(regionCard)
+            }
+        }
+    }
+
+    // 새로운 메서드: 전세계 지역 UI 설정
+    private fun setupInternationalRegions(regions: List<InternationalRegion>) {
+        worldMapContainer.removeAllViews()
+
+        // ScrollView 생성
+        val scrollView = ScrollView(this)
+        val internationalContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+        }
+
+        // 국가별로 그룹핑
+        val groupedByCountry = regions.groupBy { it.country }
+
+        groupedByCountry.forEach { (country, countryRegions) ->
+            addRegionGroupHeader(internationalContainer, country)
+
+            // 중요도별 정렬 (MAJOR 먼저, 그 다음 CITY)
+            val sortedRegions = countryRegions.sortedBy { it.type.ordinal }
+
+            sortedRegions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                internationalContainer.addView(regionCard)
+            }
+        }
+
+        scrollView.addView(internationalContainer)
+        worldMapContainer.addView(scrollView)
+    }
+
+    // 새로운 메서드: 모든 지역 데이터 초기화
+    private fun initializeAllRegions() {
+        allRegions = listOf(
             // === 기존 한국 지역들 (country = "대한민국" 추가) ===
             InternationalRegion(
                 "수도권 (서울·경기·인천)", "Seoul Metropolitan Area",
@@ -256,62 +351,62 @@ class OfflineMapActivity : ComponentActivity() {
                 "동남권 산업도시", RegionType.CITY,
                 "대한민국"
             ),
-             InternationalRegion(
-                 "강원특별자치도", "Gangwon Province",
-                 128.2016, 37.8228,
-                 127.0, 129.5, 37.0, 38.6,
-                 "산악과 해안의 아름다운 자연", RegionType.PROVINCE,
-                 "대한민국"
-             ),
-             InternationalRegion(
-                 "충청북도", "Chungcheongbuk-do",
-                 127.7294, 36.6354,
-                 127.0, 128.5, 36.0, 37.2,
-                 "내륙 산업과 자연이 조화", RegionType.PROVINCE,
-                 "대한민국"
-             ),
-             InternationalRegion(
-                 "충청남도", "Chungcheongnam-do",
-                 126.8000, 36.5184,
-                 125.7, 127.8, 36.0, 37.0,
-                 "서해안 농업과 공업 중심지", RegionType.PROVINCE,
-                 "대한민국"
-             ),
-             InternationalRegion(
-                 "전북특별자치도", "Jeonbuk Province",
-                 127.1530, 35.7175,
-                 126.4, 127.9, 35.1, 36.2,
-                 "전통문화와 농업의 중심", RegionType.PROVINCE,
-                 "대한민국"
-             ),
-             InternationalRegion(
-                 "전라남도", "Jeollanam-do",
-                 126.9910, 34.8679,
-                 125.4, 127.8, 33.8, 35.4,
-                 "다도해와 농업의 보고", RegionType.PROVINCE,
-                 "대한민국"
-             ),
-             InternationalRegion(
-                 "경상북도", "Gyeongsangbuk-do",
-                 128.8889, 36.4919,
-                 128.0, 129.6, 35.4, 37.2,
-                 "전통과 첨단산업이 공존", RegionType.PROVINCE,
-                 "대한민국"
-             ),
-             InternationalRegion(
-                 "경상남도", "Gyeongsangnam-do",
-                 128.2132, 35.4606,
-                 127.5, 129.2, 34.7, 35.8,
-                 "기계공업과 조선업의 중심", RegionType.PROVINCE,
-                 "대한민국"
-             ),
-             InternationalRegion(
-                 "제주특별자치도", "Jeju Province",
-                 126.5312, 33.4996,
-                 126.1, 126.9, 33.1, 33.9,
-                 "화산섬 관광과 자연의 보고", RegionType.SPECIAL,
-                 "대한민국"
-             ),
+            InternationalRegion(
+                "강원특별자치도", "Gangwon Province",
+                128.2016, 37.8228,
+                127.0, 129.5, 37.0, 38.6,
+                "산악과 해안의 아름다운 자연", RegionType.PROVINCE,
+                "대한민국"
+            ),
+            InternationalRegion(
+                "충청북도", "Chungcheongbuk-do",
+                127.7294, 36.6354,
+                127.0, 128.5, 36.0, 37.2,
+                "내륙 산업과 자연이 조화", RegionType.PROVINCE,
+                "대한민국"
+            ),
+            InternationalRegion(
+                "충청남도", "Chungcheongnam-do",
+                126.8000, 36.5184,
+                125.7, 127.8, 36.0, 37.0,
+                "서해안 농업과 공업 중심지", RegionType.PROVINCE,
+                "대한민국"
+            ),
+            InternationalRegion(
+                "전북특별자치도", "Jeonbuk Province",
+                127.1530, 35.7175,
+                126.4, 127.9, 35.1, 36.2,
+                "전통문화와 농업의 중심", RegionType.PROVINCE,
+                "대한민국"
+            ),
+            InternationalRegion(
+                "전라남도", "Jeollanam-do",
+                126.9910, 34.8679,
+                125.4, 127.8, 33.8, 35.4,
+                "다도해와 농업의 보고", RegionType.PROVINCE,
+                "대한민국"
+            ),
+            InternationalRegion(
+                "경상북도", "Gyeongsangbuk-do",
+                128.8889, 36.4919,
+                128.0, 129.6, 35.4, 37.2,
+                "전통과 첨단산업이 공존", RegionType.PROVINCE,
+                "대한민국"
+            ),
+            InternationalRegion(
+                "경상남도", "Gyeongsangnam-do",
+                128.2132, 35.4606,
+                127.5, 129.2, 34.7, 35.8,
+                "기계공업과 조선업의 중심", RegionType.PROVINCE,
+                "대한민국"
+            ),
+            InternationalRegion(
+                "제주특별자치도", "Jeju Province",
+                126.5312, 33.4996,
+                126.1, 126.9, 33.1, 33.9,
+                "화산섬 관광과 자연의 보고", RegionType.SPECIAL,
+                "대한민국"
+            ),
 
             // === 일본 주요 도시들 ===
             InternationalRegion(
@@ -408,68 +503,9 @@ class OfflineMapActivity : ComponentActivity() {
                 "미국"
             )
         )
-
-        koreanRegionsContainer.removeAllViews()
-
-        // 권역별로 그룹핑해서 표시
-        val groupedRegions = allRegions.groupBy { it.type }
-
-        // 수도권 먼저 표시
-        groupedRegions[RegionType.METROPOLITAN]?.let { regions ->
-            addRegionGroupHeader("수도권")
-            regions.forEach { region ->
-                val regionCard = createRegionCard(region)
-                koreanRegionsContainer.addView(regionCard)
-            }
-        }
-
-        // 광역시
-        groupedRegions[RegionType.CITY]?.let { regions ->
-            addRegionGroupHeader("광역시")
-            regions.forEach { region ->
-                val regionCard = createRegionCard(region)
-                koreanRegionsContainer.addView(regionCard)
-            }
-        }
-
-        // 도 지역
-        groupedRegions[RegionType.PROVINCE]?.let { regions ->
-            addRegionGroupHeader("도 지역")
-            regions.forEach { region ->
-                val regionCard = createRegionCard(region)
-                koreanRegionsContainer.addView(regionCard)
-            }
-        }
-
-        // 특별자치도
-        groupedRegions[RegionType.SPECIAL]?.let { regions ->
-            addRegionGroupHeader("특별자치도")
-            regions.forEach { region ->
-                val regionCard = createRegionCard(region)
-                koreanRegionsContainer.addView(regionCard)
-            }
-        }
-
-        // 해외 주요 도시
-        groupedRegions[RegionType.INTERNATIONAL_MAJOR]?.let { regions ->
-            addRegionGroupHeader("해외 주요 도시")
-            regions.forEach { region ->
-                val regionCard = createRegionCard(region)
-                koreanRegionsContainer.addView(regionCard)
-            }
-        }
-
-        // 해외 일반 도시
-        groupedRegions[RegionType.INTERNATIONAL_CITY]?.let { regions ->
-            addRegionGroupHeader("해외 도시")
-            regions.forEach { region ->
-                val regionCard = createRegionCard(region)
-                koreanRegionsContainer.addView(regionCard)
-            }
-        }
     }
 
-    private fun addRegionGroupHeader(groupName: String) {
+    private fun addRegionGroupHeader(container: LinearLayout, groupName: String) {
         val headerView = TextView(this).apply {
             text = groupName
             textSize = 16f
@@ -477,7 +513,7 @@ class OfflineMapActivity : ComponentActivity() {
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setPadding(16, 24, 16, 8)
         }
-        koreanRegionsContainer.addView(headerView)
+        container.addView(headerView)
     }
 
     private fun createRegionCard(region: InternationalRegion): View {  // KoreanRegion → InternationalRegion
@@ -626,6 +662,8 @@ class OfflineMapActivity : ComponentActivity() {
     private fun performSmartSearch() {
         val query = searchEditText.text.toString().trim()
         if (query.isEmpty()) {
+            // 검색어가 비어있으면 필터 해제
+            clearFilter()
             showToast(languageManager.getLocalizedString(
                 "검색어를 입력해주세요",
                 "Please enter a search term"
@@ -647,7 +685,7 @@ class OfflineMapActivity : ComponentActivity() {
         val exactMatch = findExactMatch(query)
         if (exactMatch != null) {
             Log.d("OfflineMapActivity", "Found exact match: ${exactMatch.koreanName}")
-            showExactMatchDialog(exactMatch, query)
+            showRegionDirectly(exactMatch, query)
             return
         }
 
@@ -655,7 +693,7 @@ class OfflineMapActivity : ComponentActivity() {
         val partialMatches = findPartialMatches(query)
         if (partialMatches.isNotEmpty()) {
             Log.d("OfflineMapActivity", "Found ${partialMatches.size} partial matches")
-            showMultipleMatchesDialog(partialMatches, query)
+            showFilteredResults(partialMatches, query)
             return
         }
 
@@ -663,15 +701,185 @@ class OfflineMapActivity : ComponentActivity() {
         val countryMatches = findCountryMatches(query)
         if (countryMatches.isNotEmpty()) {
             Log.d("OfflineMapActivity", "Found ${countryMatches.size} country matches")
-            showCountryMatchesDialog(countryMatches, query)
+            showFilteredResults(countryMatches, query)
             return
         }
 
-        // 4단계: 기존 Mapbox API 검색
-        Log.d("OfflineMapActivity", "No predefined matches, using Mapbox search")
-        performMapboxSearch(query)
+        // 4단계: 기존 Mapbox API 검색 (커스텀 검색)
+        Log.d("OfflineMapActivity", "No predefined matches, using custom Mapbox search")
+        showNoResultsDialog(query)
     }
 
+    // 새로운 메서드: 단일 지역을 바로 표시 (정확한 매칭의 경우)
+    private fun showRegionDirectly(region: InternationalRegion, searchQuery: String) {
+        if (region.country == "대한민국") {
+            // 한국 지역인 경우 국내 지역 탭으로 이동
+            selectTab(OfflineTab.KOREAN_REGIONS)
+        } else {
+            // 해외 지역인 경우 전세계 탭으로 이동하고 해당 지역만 표시
+            selectTab(OfflineTab.WORLD_MAP)
+            applyFilter(listOf(region), searchQuery)
+        }
+
+        // 검색창 숨기기 (키보드)
+        hideKeyboard()
+    }
+
+    // 새로운 메서드: 필터링된 결과 표시
+    private fun showFilteredResults(regions: List<InternationalRegion>, searchQuery: String) {
+        // 한국 지역과 해외 지역 분리
+        val koreanRegions = regions.filter { it.country == "대한민국" }
+        val internationalRegions = regions.filter { it.country != "대한민국" }
+
+        when {
+            koreanRegions.isNotEmpty() && internationalRegions.isEmpty() -> {
+                // 한국 지역만 있는 경우
+                selectTab(OfflineTab.KOREAN_REGIONS)
+            }
+            koreanRegions.isEmpty() && internationalRegions.isNotEmpty() -> {
+                // 해외 지역만 있는 경우
+                selectTab(OfflineTab.WORLD_MAP)
+                applyFilter(internationalRegions, searchQuery)
+            }
+            else -> {
+                // 둘 다 있는 경우 해외 지역 우선 표시
+                selectTab(OfflineTab.WORLD_MAP)
+                applyFilter(internationalRegions, searchQuery)
+            }
+        }
+
+        hideKeyboard()
+    }
+
+    // 새로운 메서드: 결과 없음 다이얼로그
+    private fun showNoResultsDialog(searchQuery: String) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(languageManager.getLocalizedString("검색 결과 없음", "No Results Found"))
+            .setMessage(languageManager.getLocalizedString(
+                "'$searchQuery'와 일치하는 미리 정의된 지역이 없습니다.\n\n온라인 검색을 통해 커스텀 지역을 다운로드하시겠습니까?",
+                "No predefined regions match '$searchQuery'.\n\nSearch online for custom region download?"
+            ))
+            .setPositiveButton(languageManager.getLocalizedString("온라인 검색", "Online Search")) { _, _ ->
+                performMapboxSearch(searchQuery)
+            }
+            .setNegativeButton(languageManager.getLocalizedString("취소", "Cancel"), null)
+            .show()
+    }
+
+    // 새로운 메서드: 전세계 탭에 필터 적용
+    private fun applyFilter(regions: List<InternationalRegion>, filterQuery: String) {
+        isFiltering = true
+        currentFilter = filterQuery
+
+        // 필터링된 지역들로 전세계 탭 재구성
+        setupInternationalRegionsFiltered(regions)
+
+        // 필터 상태 표시
+        showFilterStatus(filterQuery, regions.size)
+    }
+
+    // 새로운 메서드: 필터링된 전세계 지역 표시
+    private fun setupInternationalRegionsFiltered(regions: List<InternationalRegion>) {
+        worldMapContainer.removeAllViews()
+
+        // 필터 해제 버튼 추가
+        val filterHeader = createFilterHeader()
+        worldMapContainer.addView(filterHeader)
+
+        // ScrollView 생성
+        val scrollView = ScrollView(this)
+        val internationalContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 0, 16, 16)
+        }
+
+        // 국가별로 그룹핑
+        val groupedByCountry = regions.groupBy { it.country }
+
+        groupedByCountry.forEach { (country, countryRegions) ->
+            addRegionGroupHeader(internationalContainer, "$country (${countryRegions.size}개)")
+
+            val sortedRegions = countryRegions.sortedBy { it.type.ordinal }
+            sortedRegions.forEach { region ->
+                val regionCard = createRegionCard(region)
+                internationalContainer.addView(regionCard)
+            }
+        }
+
+        scrollView.addView(internationalContainer)
+        worldMapContainer.addView(scrollView)
+    }
+
+    // 새로운 메서드: 필터 헤더 생성
+    private fun createFilterHeader(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(16, 16, 16, 8)
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setBackgroundColor(getColor(R.color.language_option_selected))
+
+            val filterText = TextView(this@OfflineMapActivity).apply {
+                text = languageManager.getLocalizedString(
+                    "검색 결과: '$currentFilter'",
+                    "Search results: '$currentFilter'"
+                )
+                textSize = 14f
+                setTextColor(getColor(R.color.primary_color))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+
+            val clearButton = Button(this@OfflineMapActivity).apply {
+                text = languageManager.getLocalizedString("전체 보기", "Show All")
+                textSize = 12f
+                setBackgroundColor(getColor(R.color.secondary_button))
+                setOnClickListener { clearFilter() }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginStart = 16
+                }
+            }
+
+            addView(filterText)
+            addView(clearButton)
+        }
+    }
+
+    // 새로운 메서드: 필터 해제
+    private fun clearFilter() {
+        if (isFiltering) {
+            isFiltering = false
+            currentFilter = ""
+
+            // 전체 국제 지역 다시 표시
+            val internationalRegions = allRegions.filter { it.country != "대한민국" }
+            setupInternationalRegions(internationalRegions)
+
+            // 검색창 비우기
+            searchEditText.setText("")
+
+            showToast(languageManager.getLocalizedString(
+                "필터가 해제되었습니다",
+                "Filter cleared"
+            ))
+        }
+    }
+
+    // 새로운 메서드: 필터 상태 표시
+    private fun showFilterStatus(query: String, resultCount: Int) {
+        val message = languageManager.getLocalizedString(
+            "'$query' 검색 결과 ${resultCount}개 지역",
+            "Found $resultCount regions for '$query'"
+        )
+        showToast(message)
+    }
+
+    // 새로운 메서드: 키보드 숨기기
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+    }
 
     // 정확한 매칭 검색
     private fun findExactMatch(query: String): InternationalRegion? {
@@ -915,6 +1123,12 @@ class OfflineMapActivity : ComponentActivity() {
     }
 
     private fun selectTab(tab: OfflineTab) {
+        // 탭 전환 시 필터가 있다면 유지하거나 해제
+        if (currentTab != tab && isFiltering && tab != OfflineTab.WORLD_MAP) {
+            // 전세계 탭이 아닌 다른 탭으로 이동 시 필터 해제
+            clearFilter()
+        }
+
         currentTab = tab
 
         // 모든 탭 비활성화
@@ -936,6 +1150,11 @@ class OfflineMapActivity : ComponentActivity() {
             OfflineTab.WORLD_MAP -> {
                 updateTabAppearance(tabWorldMap, true)
                 worldMapContainer.visibility = View.VISIBLE
+                // 필터가 적용되어 있지 않다면 전체 지역 표시
+                if (!isFiltering) {
+                    val internationalRegions = allRegions.filter { it.country != "대한민국" }
+                    setupInternationalRegions(internationalRegions)
+                }
             }
             OfflineTab.DOWNLOADED -> {
                 updateTabAppearance(tabDownloaded, true)

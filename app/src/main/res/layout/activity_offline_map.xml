@@ -173,20 +173,8 @@
             android:id="@+id/worldMapContainer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:gravity="center"
             android:orientation="vertical"
-            android:padding="32dp"
             android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:lineSpacingExtra="4dp"
-                android:text="전세계 지도 기능은 추후 구현 예정입니다.\n\n현재는 검색 기능을 통해\n원하는 지역을 다운로드하실 수 있습니다."
-                android:textColor="@color/setting_desc_color"
-                android:textSize="16sp" />
-
         </LinearLayout>
 
         <!-- 다운로드된 지역 목록 -->
