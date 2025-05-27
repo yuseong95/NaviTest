@@ -9,8 +9,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- 또는 DSP 관련 권한들 -->
 
     <application
+        android:usesCleartextTraffic="true"
+        android:extractNativeLibs="true"
         android:allowNativeHeapPointerTagging="false"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -20,6 +24,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
         tools:targetApi="31">
         <activity
 
@@ -40,6 +46,10 @@
         <uses-native-library
             android:name="libcdsprpc.so"
             android:required="false" />
+        <meta-data
+            android:name="android.app.use_scudo"
+            android:value="false" />
+        <meta-data android:name="android.app.use_legacy_malloc" android:value="true" />
     </application>
 
 </manifest>

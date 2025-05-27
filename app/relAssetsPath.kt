@@ -1,0 +1,1 @@
+val relAssetsPath = "src/main/assets/models/"

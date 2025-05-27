@@ -60,6 +60,7 @@ import java.io.IOException
 
 
 class MainActivity : ComponentActivity() {
+
     // 필요한 매니저 클래스들을 선언
     private lateinit var mapInitializer: MapInitializer
     private lateinit var navigationManager: NavigationManager
@@ -85,7 +86,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var modelDir : String
     private lateinit var genieWrapper: GenieWrapper
     // MapboxNavigation delegate - 프로퍼티명 제거하여 "never used" 해결
-    private val mapboxNavigation by requireMapboxNavigation(
+    /*private val mapboxNavigation by requireMapboxNavigation(
         onResumedObserver = object : MapboxNavigationObserver {
             @SuppressLint("MissingPermission")
             override fun onAttached(mapboxNavigation: MapboxNavigation) {
@@ -132,11 +133,23 @@ class MainActivity : ComponentActivity() {
         onInitialize = {
             setupMapboxNavigation()
         }
-    )
+    )*/
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        System.loadLibrary("chatapp")
         setContentView(R.layout.activity_main)
+        val dir = File(applicationInfo.nativeLibraryDir)
+        Log.d("LIB_DEBUG", "Native library dir: ${dir.absolutePath}")
+
+        val files = dir.listFiles()
+        if (files.isNullOrEmpty()) {
+            Log.e("LIB_DEBUG", "❌ No .so files found in nativeLibraryDir.")
+        } else {
+            for (file in files) {
+                Log.d("LIB_DEBUG", "✅ Found native lib: ${file.name}")
+            }
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
@@ -146,7 +159,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // ViewModel 초기화
-        searchButtonViewModel = ViewModelProvider(this)[SearchButtonViewModel::class.java]
+      /*  searchButtonViewModel = ViewModelProvider(this)[SearchButtonViewModel::class.java]
 
         // 먼저 searchFab 초기화
         searchFab = findViewById(R.id.searchFab)
@@ -175,7 +188,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // WhisperService 초기화 및 마이크 권한 요청
-        setupWhisperService()
+        setupWhisperService()*/
         // 모델 초기화 (정상 작동 버전) 라마 경로 찾기.
         try {
             configPath = ModelInitializer.initialize(this)
@@ -338,9 +351,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (::navigationManager.isInitialized) {
+       /* if (::navigationManager.isInitialized) {
             navigationManager.checkNetworkStatus()
-        }
+        }*/
         if (!::genieWrapper.isInitialized) {
             try {
                 Log.d("MainActivity", "🧠 Trying DSP GenieWrapper...")
@@ -463,7 +476,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         Log.d("MainActivity", "onDestroy called")
-
+/*
         if (::searchManager.isInitialized) {
             searchManager.cleanup()
         }
@@ -475,7 +488,7 @@ class MainActivity : ComponentActivity() {
         //whisperService 종료
         whisperService?.stop()
 
-        MapboxNavigationApp.disable()
+        MapboxNavigationApp.disable()*/
         super.onDestroy()
     }
 }

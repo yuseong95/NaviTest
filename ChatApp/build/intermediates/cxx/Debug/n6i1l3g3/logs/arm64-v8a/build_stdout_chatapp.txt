@@ -1,2 +1,3 @@
-ninja: Entering directory `C:\Users\kgykd\AndroidStudioProjects\NaviTest\ChatApp\.cxx\Debug\n6i1l3g3\arm64-v8a'
-ninja: no work to do.
+ninja: Entering directory `C:\Users\tkdgn\AndroidStudioProjects\capstonefinal\NaviTest\ChatApp\.cxx\Debug\n6i1l3g3\arm64-v8a'
+[1/2] Building CXX object CMakeFiles/chatapp.dir/GenieWrapper.cpp.o
+[2/2] Linking CXX shared library C:\Users\tkdgn\AndroidStudioProjects\capstonefinal\NaviTest\ChatApp\build\intermediates\cxx\Debug\n6i1l3g3\obj\arm64-v8a\libchatapp.so
