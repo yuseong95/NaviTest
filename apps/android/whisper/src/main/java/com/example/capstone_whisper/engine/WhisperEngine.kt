@@ -33,7 +33,7 @@ internal class WhisperEngine(private val context: Context) : WhisperEngineInterf
     @Throws(IOException::class)
     override fun initialize(): Boolean {
         // Load model
-        val tfliteModel = loadModelFile(context, "whisper-tiny.tflite")
+        val tfliteModel = loadModelFile(context, "whisper-small.tflite")
         val options = Interpreter.Options().apply {
             setNumThreads(Runtime.getRuntime().availableProcessors())
         }

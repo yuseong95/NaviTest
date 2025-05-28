@@ -55,7 +55,7 @@ import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 import com.example.capstone_whisper.WhisperService
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.io.File
-
+import android.app.AlertDialog
 class Navi : ComponentActivity() {
     // 필요한 매니저 클래스들을 선언
     private lateinit var mapInitializer: MapInitializer
@@ -465,12 +465,41 @@ class Navi : ComponentActivity() {
             ::navigationManager.isInitialized && navigationManager.isNavigating() -> {
                 handleNavigationBackPress()
             }
-
+            // 새로 추가: 목적지가 설정되어 있지만 내비게이션이 시작되지 않은 상태
+            hasDestinationSet && !isNavigationActive -> {
+                Log.d("MainActivity", "Back pressed - clearing destination")
+                clearDestination()
+            }
             // 6. 모든 것이 닫혀있으면 앱 종료 확인
             else -> {
                 Log.d("MainActivity", "Back pressed - showing exit dialog")
                 showExitDialog()
             }
+        }
+    }
+    private fun clearDestination() {
+        Log.d("MainActivity", "Clearing destination and resetting to initial state")
+
+        if (::navigationManager.isInitialized) {
+            // NavigationManager를 통해 목적지 해제
+            navigationManager.clearDestination()
+        }
+
+        // 내부 상태 초기화
+        hasDestinationSet = false
+
+        // ViewModel 상태 초기화
+        searchButtonViewModel.setHasDestination(false)
+
+        // UI 업데이트
+        runOnUiThread {
+            // 메인 액션 버튼 숨기기
+            mainActionButton.visibility = View.GONE
+
+            // 경로 정보 패널 숨기기
+            routeInfoPanel.visibility = View.GONE
+
+            Log.d("MainActivity", "Destination cleared, UI reset to initial state")
         }
     }
 
@@ -691,8 +720,24 @@ class Navi : ComponentActivity() {
         }
 
         appInfoOption.setOnClickListener {
-            // 앱 정보 화면으로 이동 (추후 구현)
-            Toast.makeText(this, "앱 정보 화면은 추후 구현 예정입니다", Toast.LENGTH_SHORT).show()
+            val appInfoMessage = """
+        📱 마이 맵 앱
+        
+        👨‍💻 개발자: TechStudio Korea
+        📋 버전: 1.0
+        📅 빌드 날짜: 2025년 5월 29일
+        
+        © 2025 TechStudio Korea
+    """.trimIndent()
+
+            AlertDialog.Builder(this)
+                .setTitle("앱 정보")
+                .setMessage(appInfoMessage)
+                .setPositiveButton("확인") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .setIcon(R.drawable.ic_info) // 선택사항: 아이콘 추가
+                .show()
         }
     }
 
