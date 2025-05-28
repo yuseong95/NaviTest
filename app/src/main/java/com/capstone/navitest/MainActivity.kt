@@ -303,11 +303,43 @@ class MainActivity : ComponentActivity() {
                 handleNavigationBackPress()
             }
 
+            // 새로 추가: 목적지가 설정되어 있지만 내비게이션이 시작되지 않은 상태
+            hasDestinationSet && !isNavigationActive -> {
+                Log.d("MainActivity", "Back pressed - clearing destination")
+                clearDestination()
+            }
+
             // 6. 모든 것이 닫혀있으면 앱 종료 확인
             else -> {
                 Log.d("MainActivity", "Back pressed - showing exit dialog")
                 showExitDialog()
             }
+        }
+    }
+
+    private fun clearDestination() {
+        Log.d("MainActivity", "Clearing destination and resetting to initial state")
+
+        if (::navigationManager.isInitialized) {
+            // NavigationManager를 통해 목적지 해제
+            navigationManager.clearDestination()
+        }
+
+        // 내부 상태 초기화
+        hasDestinationSet = false
+
+        // ViewModel 상태 초기화
+        searchButtonViewModel.setHasDestination(false)
+
+        // UI 업데이트
+        runOnUiThread {
+            // 메인 액션 버튼 숨기기
+            mainActionButton.visibility = View.GONE
+
+            // 경로 정보 패널 숨기기
+            routeInfoPanel.visibility = View.GONE
+
+            Log.d("MainActivity", "Destination cleared, UI reset to initial state")
         }
     }
 

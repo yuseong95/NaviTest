@@ -336,4 +336,20 @@ class RouteManager(
             }
         }
     }
+
+    // RouteManager.kt에 새로 추가할 메서드
+    fun clearDestination() {
+        Log.d("RouteManager", "Clearing destination only")
+
+        // 목적지만 null로 설정 (출발지는 유지)
+        currentDestination = null
+
+        // 경로 캐시도 클리어
+        clearCachedRoutes()
+
+        // Mapbox Navigation의 경로 클리어
+        mapboxNavigation.setNavigationRoutes(emptyList())
+
+        Log.d("RouteManager", "Destination cleared, origin maintained")
+    }
 }

@@ -823,6 +823,41 @@ class NavigationManager(
         })
     }
 
+    fun clearDestination() {
+        try {
+            Log.d("NavigationManager", "Clearing destination only (not navigation)")
+
+            // 1. 경로 라인 클리어
+            clearAllRouteLines()
+
+            // 2. 마커 삭제
+            if (::markerManager.isInitialized) {
+                markerManager.clearMarkers()
+            }
+
+            // 3. 경로 관리자에서 목적지 제거
+            if (::routeManager.isInitialized) {
+                routeManager.clearDestination()
+            }
+
+            // 4. Mapbox Navigation의 경로도 클리어
+            if (::mapboxNavigation.isInitialized) {
+                mapboxNavigation.setNavigationRoutes(emptyList())
+            }
+
+            // 5. ViewModel 상태 업데이트
+            searchButtonViewModel?.setHasDestination(false)
+
+            // 6. MainActivity에 경로 정보 숨기기 알림
+            hideRouteInfoDisplay()
+
+            Log.d("NavigationManager", "Destination cleared successfully")
+
+        } catch (e: Exception) {
+            Log.e("NavigationManager", "Error clearing destination", e)
+        }
+    }
+
     // 정리 메소드
     fun cleanup() {
         try {
