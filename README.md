@@ -117,11 +117,48 @@
 
 ## 설치 및 실행 방법
 
+### 1. git clone
 ```bash
 git clone https://github.com/your-username/your-repo.git
 cd your-repo
 # Android Studio에서 프로젝트 열기
 ```
+<br>
+
+### 2. QNN SDK 설치
+
+- [Qualcomm AI Runtime Community](https://qpm.qualcomm.com/#/main/tools/details/Qualcomm_AI_Runtime_Community)에서 **버전 2.32.6.250402**를 다운로드하여 설치합니다.
+<br>
+
+### 3. chatApp/build.gradle 수정
+```gradle
+def qnnSDKLocalPath = "C:/경로/Qualcomm_AI_Runtime_Community/2.32.6.250402"0402**를 다운로드하여 설치합니다.
+```
+<br>
+
+### 4. Wake Word 모델 및 Access Key 수정 (Whisper/asr/Porcupine.kt)
+
+```kotlin
+val keywordFile = copyAssetToFile("Whisper_en_android_last.ppn")
+    .setAccessKey("oFaIK3VmcgGvtUg1o97yGvQXsdkkI2ta47Gucv3HRoqD8oVhQ1fdhA==")
+```
+<br>
+
+### 5. Mapbox 다운로드 토큰 설정 (gradle.properties)
+
+```properties
+MAPBOX_DOWNLOADS_TOKEN=your_mapbox_token_here
+```
+<br>
+
+### 6. Mapbox 실행 토큰 설정 (values\mapbox_access_token.xml)
+```
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="mapbox_access_token" translatable="false" tools:ignore="UnusedResources">your access token here</string>
+</resources>
+```
+  
+
 
 
 ## 사용 예시
@@ -154,4 +191,6 @@ cd your-repo
 
 - 🔗 [Qualcomm AI Hub - Android 샘플 앱](https://github.com/quic/ai-hub-apps)  
   → Whisper 및 LLaMA 모델의 Android 기반 활용 예제
+
+
 
