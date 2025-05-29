@@ -178,7 +178,7 @@ MAPBOX_DOWNLOADS_TOKEN=your_mapbox_token_here
 - LLaMA3: Meta License → [https://ai.meta.com/llama](https://ai.meta.com/llama)
 - Porcupine: [https://github.com/Picovoice/porcupine](https://github.com/Picovoice/porcupine)
 - Mapbox SDK: Mapbox Terms of Service 준수
-- 
+  
 ## 참고한 자료 및 코드
 
 본 프로젝트는 다음의 공개된 모델 및 예제 코드를 참고하여 개발되었습니다:
