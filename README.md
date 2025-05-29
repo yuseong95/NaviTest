@@ -141,3 +141,17 @@ cd your-repo
 - LLaMA3: Meta License → [https://ai.meta.com/llama](https://ai.meta.com/llama)
 - Porcupine: [https://github.com/Picovoice/porcupine](https://github.com/Picovoice/porcupine)
 - Mapbox SDK: Mapbox Terms of Service 준수
+- 
+## 참고한 자료 및 코드
+
+본 프로젝트는 다음의 공개된 모델 및 예제 코드를 참고하여 개발되었습니다:
+
+- 🔗 [Qualcomm AI Hub - LLaMA v3 2.3B Instruct 모델](https://github.com/quic/ai-hub-models/tree/main/qai_hub_models/models/llama_v3_2_3b_instruct)  
+  → 온디바이스 LLaMA 모델 통합
+
+- 🔗 [Hugging Face - cik009/whisper 모델](https://huggingface.co/cik009/whisper/tree/main)  
+  → Whisper 음성 인식 모델 (다국어 지원
+
+- 🔗 [Qualcomm AI Hub - Android 샘플 앱](https://github.com/quic/ai-hub-apps)  
+  → Whisper 및 LLaMA 모델의 Android 기반 활용 예제
+
