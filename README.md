@@ -39,11 +39,11 @@
 ## AI 모델 구성
 
 ### Whisper-small
-- 구조: Encoder-Decoder 합체형 (TFLITE 기반)
+- 구조: Encoder-Decoder 혼합형 (TFLite 기반)
 - 입력: PCM → Mel Spectrogram → Encoder
 - 출력: 토큰 시퀀스 (Decoder)
 
-### LLaMA3 (7B)
+### LLaMA3 (Llama-v3.2-3B-Instruct)
 - 입력: Whisper 디코딩 텍스트
 - 출력: 목적지 지명 또는 명령 의도 추출
 - 처리 방식: 사전 정의된 프롬프트 + 스트리밍 응답 (On-device 실행 가능 구조 최적화)
@@ -102,12 +102,18 @@
 ---
 ## 시스템 요구사항
 
-- Android 13 (API 레벨 29) 이상 권장
-- Qualcomm Snapdragon 800 이상 권장
+- Android 15 (API 레벨 35) 이상 권장
 - 최소 8GB RAM 이상 권장
 - 최소 저장 공간 2GB 이상 (AI 모델 및 지도 데이터)
+- 64-bit ARM 아키텍처 지원 필수 (arm64-v8a)
 
+## Supported SoCs
 
+| SoC Model | Snapdragon Series           |
+|-----------|-----------------------------|
+| SM8750    | Snapdragon 8 Gen 1 Elite    |
+| QCS8550   | Snapdragon 8 Gen 2          |
+| SM8650    | Snapdragon 8 Gen 3          |
 
 ## 설치 및 실행 방법
 
