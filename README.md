@@ -170,7 +170,11 @@ MAPBOX_DOWNLOADS_TOKEN=your_mapbox_token_here
 5. LLaMA3 모델이 변환된 텍스트를 분석하여 목적지를 파악합니다.
 6. Mapbox 오프라인 네비게이션이 최적 경로를 계산하여 안내를 시작합니다.
 
+## 시연 영상
 
+[![시연 영상](https://img.youtube.com/vi/rI1aDTfDxAw/0.jpg)](https://youtu.be/rI1aDTfDxAw)
+
+링크 : https://youtu.be/rI1aDTfDxAw
 
 ## 라이선스 및 출처
 
