@@ -3,7 +3,7 @@
 > 스마트폰에서 인터넷 없이도 동작하는 **AI 음성 네비게이션 시스템**
 
 
----
+
 ## QBot 개발팀 소개
 
 | 나유성 | 강기영 | 송상훈 | 유도현 |
@@ -12,7 +12,7 @@
 | [@yuseong](https://github.com/yuseong95) | [@youngK](https://github.com/Kang0048) | [@songhun](https://github.com/song12121212) | [@dohyun](https://github.com/dohyun1423) |
 | 한성대학교 컴퓨터공학과 4학년 | 한성대학교 컴퓨터공학과 4학년 | 한성대학교 컴퓨터공학과 4학년 | 한성대학교 컴퓨터공학과 4학년 |
 
----
+
 
 
 ## 프로젝트 개요
@@ -27,7 +27,7 @@
 
 ✅ **완전 오프라인 지원** – 네트워크 없이도 모든 기능 동작
 
----
+
 ## 주요 기능
 
 - 오프라인 음성 인식 (Whisper-small)
@@ -35,7 +35,7 @@
 - Mapbox 기반 오프라인 경로 안내
 - "위스퍼" 호출어 인식 및 명령 처리
 - 네트워크 연결 없이 완전 오프라인 동작 지원
----
+
 ## AI 모델 구성
 
 ### Whisper-small
@@ -51,7 +51,7 @@
 ### Porcupine
 - Wake word: "위스퍼"
 - Edge-optimized 모델 사용 (PV 키 기반)
----
+
 ##  기술 스택
 
 ## Environment & Platform
@@ -96,7 +96,7 @@
 </p>
 
 
----
+
 ## 프로젝트 구조
 
 ---
@@ -107,7 +107,7 @@
 - 최소 8GB RAM 이상 권장
 - 최소 저장 공간 2GB 이상 (AI 모델 및 지도 데이터)
 
----
+
 
 ## 설치 및 실행 방법
 
@@ -117,14 +117,21 @@ cd your-repo
 # Android Studio에서 프로젝트 열기
 ```
 
----
+
 ## 사용 예시
 
 1. 앱을 실행합니다.
-2. "위스퍼"라고 호출하여 음성 인식을 활성화합니다.
-3. 자연어로 목적지를 말합니다. 예: 강남역으로 가줘, 서울역 어떻게 가
-4. Whisper 모델이 음성을 텍스트로 변환합니다.
+2. **위스퍼**라고 호출하여 음성 인식을 활성화합니다.
+3. 자연어로 목적지를 말합니다. 예:**강남역으로 가줘**, **서울역 어떻게가**
+4. Whisper 모델이 음성을 텍스트로 변환합니다. 
 5. LLaMA3 모델이 변환된 텍스트를 분석하여 목적지를 파악합니다.
 6. Mapbox 오프라인 네비게이션이 최적 경로를 계산하여 안내를 시작합니다.
 
----
+
+
+## 라이선스 및 출처
+
+- Whisper-small: Apache 2.0 (OpenAI) → [https://github.com/openai/whisper](https://github.com/openai/whisper)
+- LLaMA3: Meta License → [https://ai.meta.com/llama](https://ai.meta.com/llama)
+- Porcupine: [https://github.com/Picovoice/porcupine](https://github.com/Picovoice/porcupine)
+- Mapbox SDK: Mapbox Terms of Service 준수
