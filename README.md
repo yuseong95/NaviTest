@@ -39,7 +39,7 @@
 ## AI 모델 구성
 
 ### Whisper-small
-- 구조: Encoder-Decoder 분리형 (ONNX 기반)
+- 구조: Encoder-Decoder 합체형 (TFLITE 기반)
 - 입력: PCM → Mel Spectrogram → Encoder
 - 출력: 토큰 시퀀스 (Decoder)
 
