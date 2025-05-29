@@ -1,15 +1,31 @@
-# Whisper + LLaMA3 기반 오프라인 네비게이션 앱
+# Whisper-Small + LLaMA3 기반 **On-Device Offline AI Navigation Assistant**
 
-음성으로 경로를 안내받고, 인터넷이 없어도 사용 가능한 스마트 네비게이션!
+> 스마트폰에서 인터넷 없이도 동작하는 **AI 음성 네비게이션 시스템**
+
+
+---
+## QBot 개발팀 소개
+
+| 나유성 | 강기영 | 송상훈 | 유도현 |
+|:---:|:---:|:---:|:---:|
+| <img src="https://github.com/yuseong95.png" width="120" height="120"/> | <img src="https://github.com/kang0048.png" width="120" height="120"/> | <img src="https://github.com/song12121212.png" width="120" height="120"/> | <img src="https://github.com/dohyun1423.png" width="120" height="120"/> |
+| [@yuseong](https://github.com/yuseong95) | [@youngK](https://github.com/Kang0048) | [@songhun](https://github.com/song12121212) | [@dohyun](https://github.com/dohyun1423) |
+| 한성대학교 컴퓨터공학과 4학년 | 한성대학교 컴퓨터공학과 4학년 | 한성대학교 컴퓨터공학과 4학년 | 한성대학교 컴퓨터공학과 4학년 |
 
 ---
 
+
 ## 프로젝트 개요
 
-이 프로젝트는 **Whisper-small**과 **LLaMA3**를 활용한 음성 기반 네비게이션 앱입니다.  
-사용자는 "위스퍼"라고 호출한 뒤 자연어로 목적지를 말하면, Whisper가 이를 텍스트로 변환하고, LLaMA3가 텍스트를 분석해 목적지를 파악한 후 **Mapbox 오프라인 네비게이션**을 통해 경로를 안내합니다.
 
->  **완전 오프라인 지원**: 음성 인식부터 경로 안내까지, 네트워크 없이도 동작합니다.
+**Whisper-small**과 **LLaMA3**를 활용한 오프라인 음성 기반 네비게이션 앱입니다.
+
+- 사용자가 `"위스퍼"`라고 호출하면 음성 인식 시작
+- Whisper가 음성을 텍스트로 변환
+- LLaMA3가 목적지를 파악
+- Mapbox가 오프라인 경로를 안내
+
+✅ **완전 오프라인 지원** – 네트워크 없이도 모든 기능 동작
 
 ---
 ## 주요 기능
@@ -20,7 +36,22 @@
 - "위스퍼" 호출어 인식 및 명령 처리
 - 네트워크 연결 없이 완전 오프라인 동작 지원
 ---
+## AI 모델 구성
 
+### Whisper-small
+- 구조: Encoder-Decoder 분리형 (ONNX 기반)
+- 입력: PCM → Mel Spectrogram → Encoder
+- 출력: 토큰 시퀀스 (Decoder)
+
+### LLaMA3 (7B)
+- 입력: Whisper 디코딩 텍스트
+- 출력: 목적지 지명 또는 명령 의도 추출
+- 처리 방식: 사전 정의된 프롬프트 + 스트리밍 응답 (On-device 실행 가능 구조 최적화)
+
+### Porcupine
+- Wake word: "위스퍼"
+- Edge-optimized 모델 사용 (PV 키 기반)
+---
 ##  기술 스택
 
 ## Environment & Platform
@@ -45,6 +76,8 @@
   <img src="https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white"/>
   <img src="https://img.shields.io/badge/LLaMA3-111111?style=flat&logo=meta&logoColor=white"/>
   <img src="https://img.shields.io/badge/Whisper-00B2FF?style=flat&logo=sonos&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Porcupine-blue?style=flat&logoColor=white"/>
+
 </p>
 
 ## Maps & Navigation
@@ -82,6 +115,8 @@
 git clone https://github.com/your-username/your-repo.git
 cd your-repo
 # Android Studio에서 프로젝트 열기
+```
+
 ---
 ## 사용 예시
 
